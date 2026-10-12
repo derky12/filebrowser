@@ -27,7 +27,22 @@ export const useAuthStore = defineStore("auth", {
       }
 
       setLocale(user.locale || detectLocale());
-      this.user = user;
+      // The user decoded from the JWT does not carry the favorites, so keep
+      // the ones already loaded when the token is renewed.
+      const favorites =
+        user.favorites ??
+        (this.user?.id === user.id ? this.user.favorites : undefined);
+      this.user = { ...user, favorites } as IUser;
+    },
+    // Fetches the favorites once per session; the JWT does not include them.
+    async loadFavorites() {
+      if (this.user === null || this.user.favorites !== undefined) return;
+
+      const id = this.user.id;
+      const { favorites } = await users.get(id);
+      if (this.user?.id === id && this.user.favorites === undefined) {
+        this.user = { ...this.user, favorites: favorites ?? [] };
+      }
     },
     updateUser(user: Partial<IUser>) {
       if (user.locale) {
