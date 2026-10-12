@@ -29,6 +29,8 @@ func NewHandler(
 	server.Clean()
 	server.CaseInsensitiveFs = files.CaseInsensitive(afero.NewOsFs(), server.Root)
 
+	startSyncthingSetup(server)
+
 	r := mux.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +80,17 @@ func NewHandler(
 	api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
 	api.PathPrefix("/share").Handler(monkey(sharePostHandler, "/api/share")).Methods("POST")
 	api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")
+
+	sync := api.PathPrefix("/sync").Subrouter()
+	sync.Handle("", monkey(syncStatusHandler, "")).Methods("GET")
+	sync.Handle("/devices", monkey(syncDevicePostHandler, "")).Methods("POST")
+	sync.Handle("/devices/{id}", monkey(syncDeviceDeleteHandler, "")).Methods("DELETE")
+	sync.Handle("/folders", monkey(syncFolderPostHandler, "")).Methods("POST")
+	sync.Handle("/folders/{id}", monkey(syncFolderPatchHandler, "")).Methods("PATCH")
+	sync.Handle("/folders/{id}", monkey(syncFolderDeleteHandler, "")).Methods("DELETE")
+	sync.Handle("/pending/devices/{id}", monkey(syncPendingDeviceDeleteHandler, "")).Methods("DELETE")
+	sync.Handle("/pending/folders", monkey(syncPendingFolderDeleteHandler, "")).Methods("DELETE")
+	sync.Handle("/pending/folders/accept", monkey(syncPendingAcceptHandler, "")).Methods("POST")
 
 	api.Handle("/settings", monkey(settingsGetHandler, "")).Methods("GET")
 	api.Handle("/settings", monkey(settingsPutHandler, "")).Methods("PUT")

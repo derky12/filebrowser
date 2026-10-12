@@ -92,6 +92,9 @@ func init() {
 	flags.String("cacheDir", "", "file cache directory (disabled if empty)")
 	flags.String("redisCacheUrl", "", "redis cache URL (for multi-instance deployments), e.g. redis://user:pass@host:port")
 	flags.Int("imageProcessors", 4, "image processors count")
+	flags.String("syncthingUrl", "", "base URL of a Syncthing instance to enable folder syncing (e.g. http://syncthing:8384)")
+	flags.String("syncthingApiKey", "", "API key of the Syncthing instance")
+	flags.Bool("syncthingPrivateNetwork", false, "turn off Syncthing discovery, relays and NAT traversal (for VPN-only setups)")
 	addServerFlags(flags)
 }
 
@@ -362,6 +365,13 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 
 	if v.IsSet("followExternalSymlinks") {
 		server.FollowExternalSymlinks = v.GetBool("followExternalSymlinks")
+	}
+
+	server.SyncthingURL = v.GetString("syncthingUrl")
+	server.SyncthingAPIKey = v.GetString("syncthingApiKey")
+	server.SyncthingPrivate = v.GetBool("syncthingPrivateNetwork")
+	if server.SyncthingURL != "" && server.SyncthingAPIKey == "" {
+		return nil, errors.New("--syncthingApiKey is required with --syncthingUrl")
 	}
 
 	if isAddrSet && isSocketSet {

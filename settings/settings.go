@@ -64,6 +64,12 @@ type Server struct {
 	TokenExpirationTime    string `json:"tokenExpirationTime"`
 	FollowExternalSymlinks bool   `json:"followExternalSymlinks"`
 
+	// Syncthing integration. Runtime-only: set from flags/environment, never
+	// persisted nor sent to clients.
+	SyncthingURL     string `json:"-"`
+	SyncthingAPIKey  string `json:"-"`
+	SyncthingPrivate bool   `json:"-"`
+
 	// CaseInsensitiveFs is detected from Root at startup rather than
 	// configured, and tells the rule checker to match paths case-insensitively.
 	// It is never persisted.
