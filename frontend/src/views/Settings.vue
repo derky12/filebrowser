@@ -15,6 +15,11 @@
               {{ t("settings.shareManagement") }}
             </li></router-link
           >
+          <router-link to="/settings/sync" v-if="user?.perm.admin && enableSync"
+            ><li :class="{ active: $route.path === '/settings/sync' }">
+              {{ t("sync.title") }}
+            </li></router-link
+          >
           <router-link to="/settings/global" v-if="user?.perm.admin"
             ><li :class="{ active: $route.path === '/settings/global' }">
               {{ t("settings.globalSettings") }}
@@ -73,6 +78,7 @@ import { useLayoutStore } from "@/stores/layout";
 import HeaderBar from "@/components/header/HeaderBar.vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { enableSync } from "@/utils/constants";
 
 const { t } = useI18n();
 

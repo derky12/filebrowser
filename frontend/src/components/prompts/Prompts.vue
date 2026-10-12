@@ -30,6 +30,7 @@ import DiscardEditorChanges from "./DiscardEditorChanges.vue";
 import ResolveConflict from "./ResolveConflict.vue";
 import CurrentPassword from "./CurrentPassword.vue";
 import FolderColor from "./FolderColor.vue";
+import SyncFolder from "./SyncFolder.vue";
 
 const layoutStore = useLayoutStore();
 
@@ -54,6 +55,7 @@ const components = new Map<string, any>([
   ["resolve-conflict", ResolveConflict],
   ["current-password", CurrentPassword],
   ["folderColor", FolderColor],
+  ["syncFolder", SyncFolder],
 ]);
 
 const modal = computed(() => {

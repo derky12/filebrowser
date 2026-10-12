@@ -16,6 +16,7 @@ const theme: UserTheme = window.FileBrowser.Theme;
 const enableThumbs: boolean = window.FileBrowser.EnableThumbs;
 const resizePreview: boolean = window.FileBrowser.ResizePreview;
 const enableExec: boolean = window.FileBrowser.EnableExec;
+const enableSync: boolean = window.FileBrowser.EnableSync;
 const tusSettings = window.FileBrowser.TusSettings;
 const origin = window.location.origin;
 const tusEndpoint = `/api/tus`;
@@ -39,6 +40,7 @@ export {
   enableThumbs,
   resizePreview,
   enableExec,
+  enableSync,
   tusSettings,
   origin,
   tusEndpoint,

@@ -25,6 +25,12 @@
             show="rename"
           />
           <action
+            v-if="headerButtons.sync"
+            icon="sync"
+            :label="t('sync.syncFolder')"
+            @action="openSync"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -116,6 +122,12 @@
         icon="mode_edit"
         :label="t('buttons.rename')"
         show="rename"
+      />
+      <action
+        v-if="headerButtons.sync"
+        icon="sync"
+        :label="t('sync.syncFolder')"
+        @action="openSync"
       />
       <action
         v-if="headerButtons.copy"
@@ -301,6 +313,12 @@
             show="rename"
           />
           <action
+            v-if="headerButtons.sync"
+            icon="sync"
+            :label="t('sync.syncFolder')"
+            @action="openSync"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -372,7 +390,8 @@ import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
 import { users, files as api } from "@/api";
-import { enableExec } from "@/utils/constants";
+import { enableExec, enableSync } from "@/utils/constants";
+import { urlToFavorite } from "@/utils/favorites";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
 import css from "@/utils/css";
@@ -513,6 +532,11 @@ const headerButtons = computed(() => {
       authStore.user?.perm.download,
     move: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     copy: fileStore.selectedCount > 0 && authStore.user?.perm.create,
+    sync:
+      enableSync &&
+      authStore.user?.perm.admin &&
+      fileStore.selectedCount === 1 &&
+      !!fileStore.req?.items[fileStore.selected[0]]?.isDir,
     cut: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     paste: clipboardStore.items.length > 0 && authStore.user?.perm.create,
   };
@@ -678,6 +702,16 @@ const copyCut = (event: Event | KeyboardEvent | null, key?: string): void => {
     key: key ?? (event as KeyboardEvent).key,
     items,
     path: route.path,
+  });
+};
+
+const openSync = (): void => {
+  const item = fileStore.req?.items[fileStore.selected[0]];
+  if (!item) return;
+
+  layoutStore.showHover({
+    prompt: "syncFolder",
+    props: { path: urlToFavorite(item.url) },
   });
 };
 

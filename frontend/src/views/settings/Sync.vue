@@ -1,0 +1,447 @@
+<template>
+  <errors v-if="error" :errorCode="error.status" />
+  <div class="row" v-else-if="status">
+    <div class="column sync-column">
+      <div class="sync-stack">
+        <div class="card">
+          <div class="card-title">
+            <h2>{{ t("sync.thisDevice") }}</h2>
+          </div>
+          <div class="card-content">
+            <p>{{ t("sync.thisDeviceHelp") }}</p>
+            <p class="sync-id">
+              <code>{{ status.deviceID }}</code>
+              <button
+                class="action"
+                :title="t('buttons.copyToClipboard')"
+                :aria-label="t('buttons.copyToClipboard')"
+                @click="copyId"
+              >
+                <i class="material-icons">content_paste</i>
+              </button>
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="card"
+          v-if="
+            status.pendingDevices.length > 0 || status.pendingFolders.length > 0
+          "
+        >
+          <div class="card-title">
+            <h2>{{ t("sync.pending") }}</h2>
+          </div>
+          <div class="card-content">
+            <div v-for="p in status.pendingDevices" :key="p.id" class="pending">
+              <p>
+                <strong>{{ t("sync.pendingDevice", { name: p.name }) }}</strong>
+                <small>{{ p.id }}</small>
+              </p>
+              <template v-if="acceptingDevice === p.id">
+                <sync-device-form
+                  :initial="{
+                    deviceID: p.id,
+                    name: p.name,
+                    address: hostOf(p.address),
+                  }"
+                  lockId
+                  :submitLabel="t('sync.accept')"
+                  @added="
+                    acceptingDevice = null;
+                    refresh();
+                  "
+                />
+              </template>
+              <template v-else>
+                <button class="button" @click="acceptingDevice = p.id">
+                  {{ t("sync.accept") }}
+                </button>
+                <button
+                  class="button button--flat button--grey"
+                  @click="dismissDevice(p)"
+                >
+                  {{ t("sync.dismiss") }}
+                </button>
+              </template>
+            </div>
+
+            <div
+              v-for="p in status.pendingFolders"
+              :key="p.id + p.deviceID"
+              class="pending"
+            >
+              <p>
+                <strong>{{
+                  t("sync.pendingFolder", {
+                    label: p.label,
+                    device: p.deviceName || p.deviceID,
+                  })
+                }}</strong>
+              </p>
+              <template v-if="acceptingFolder === p.id + p.deviceID">
+                <label class="field">
+                  <span>{{ t("sync.localPath") }}</span>
+                  <input
+                    class="input input--block"
+                    type="text"
+                    v-model.trim="acceptPath"
+                    spellcheck="false"
+                  />
+                  <small>{{ t("sync.localPathHelp") }}</small>
+                </label>
+                <label class="field">
+                  <span>{{ t("sync.mode") }}</span>
+                  <select class="input input--block" v-model="acceptMode">
+                    <option value="receive">
+                      {{ t("sync.modeReceiveLong") }}
+                    </option>
+                    <option value="twoway">
+                      {{ t("sync.modeTwoWayLong") }}
+                    </option>
+                  </select>
+                </label>
+                <button class="button" @click="acceptFolder(p)">
+                  {{ t("sync.accept") }}
+                </button>
+                <button
+                  class="button button--flat button--grey"
+                  @click="acceptingFolder = null"
+                >
+                  {{ t("buttons.cancel") }}
+                </button>
+              </template>
+              <template v-else>
+                <button class="button" @click="startAccept(p)">
+                  {{ t("sync.accept") }}
+                </button>
+                <button
+                  class="button button--flat button--grey"
+                  @click="dismissFolder(p)"
+                >
+                  {{ t("sync.dismiss") }}
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <h2>{{ t("sync.folders") }}</h2>
+          </div>
+          <div class="card-content full" v-if="status.folders.length > 0">
+            <table>
+              <tr>
+                <th>{{ t("settings.path") }}</th>
+                <th>{{ t("sync.mode") }}</th>
+                <th>{{ t("sync.devices") }}</th>
+                <th>{{ t("sync.state") }}</th>
+                <th></th>
+                <th></th>
+              </tr>
+              <tr v-for="f in status.folders" :key="f.id">
+                <td>
+                  <router-link v-if="!f.external" :to="'/files' + f.path">{{
+                    f.path
+                  }}</router-link>
+                  <template v-else>{{ f.path }}</template>
+                </td>
+                <td>{{ modeLabel(f.mode) }}</td>
+                <td>{{ remoteNames(f) }}</td>
+                <td>
+                  <span :class="['sync-state', stateClass(f)]">{{
+                    stateLabel(f)
+                  }}</span>
+                </td>
+                <td class="small">
+                  <button
+                    class="action"
+                    :title="f.paused ? t('sync.resume') : t('sync.pause')"
+                    :aria-label="f.paused ? t('sync.resume') : t('sync.pause')"
+                    @click="togglePause(f)"
+                  >
+                    <i class="material-icons">{{
+                      f.paused ? "play_arrow" : "pause"
+                    }}</i>
+                  </button>
+                </td>
+                <td class="small">
+                  <button
+                    class="action"
+                    :title="t('sync.stopSyncing')"
+                    :aria-label="t('sync.stopSyncing')"
+                    @click="removeFolder(f)"
+                  >
+                    <i class="material-icons">link_off</i>
+                  </button>
+                </td>
+              </tr>
+            </table>
+          </div>
+          <h2 class="message" v-else>
+            <i class="material-icons">sync_disabled</i>
+            <span>{{ t("sync.noFolders") }}</span>
+          </h2>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <h2>{{ t("sync.devices") }}</h2>
+          </div>
+          <div class="card-content full" v-if="status.devices.length > 0">
+            <table>
+              <tr>
+                <th>{{ t("sync.deviceName") }}</th>
+                <th>{{ t("sync.deviceAddress") }}</th>
+                <th>{{ t("sync.state") }}</th>
+                <th></th>
+              </tr>
+              <tr v-for="d in status.devices" :key="d.id">
+                <td>
+                  {{ d.name }}<br /><small>{{ d.id.slice(0, 7) }}…</small>
+                </td>
+                <td>{{ d.address }}</td>
+                <td>
+                  <span :class="['sync-state', d.connected ? 'ok' : 'off']">{{
+                    d.connected ? t("sync.connected") : t("sync.disconnected")
+                  }}</span>
+                </td>
+                <td class="small">
+                  <button
+                    class="action"
+                    :title="t('buttons.delete')"
+                    :aria-label="t('buttons.delete')"
+                    @click="removeDevice(d)"
+                  >
+                    <i class="material-icons">delete</i>
+                  </button>
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="card-content">
+            <h3>{{ t("sync.addDevice") }}</h3>
+            <sync-device-form @added="refresh" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { inject, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { sync as api } from "@/api";
+import { StatusError } from "@/api/utils";
+import { copy } from "@/utils/clipboard";
+import Errors from "@/views/Errors.vue";
+import SyncDeviceForm from "@/components/settings/SyncDeviceForm.vue";
+
+const $showError = inject<IToastError>("$showError")!;
+const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
+const { t } = useI18n();
+
+const status = ref<SyncStatus | null>(null);
+const error = ref<StatusError | null>(null);
+const acceptingDevice = ref<string | null>(null);
+const acceptingFolder = ref<string | null>(null);
+const acceptPath = ref("");
+const acceptMode = ref<"receive" | "twoway">("receive");
+let timer: number | undefined;
+
+const refresh = async () => {
+  try {
+    status.value = await api.status();
+    error.value = null;
+  } catch (e) {
+    if (status.value === null && e instanceof StatusError) {
+      error.value = e;
+    }
+  }
+};
+
+onMounted(() => {
+  refresh();
+  timer = window.setInterval(refresh, 4000);
+});
+onBeforeUnmount(() => window.clearInterval(timer));
+
+// Run an action, then refresh; errors are shown as toasts.
+const run = async (action: () => Promise<unknown>, success?: string) => {
+  try {
+    await action();
+    if (success) $showSuccess(success);
+  } catch (e) {
+    $showError(e as Error);
+  }
+  await refresh();
+};
+
+const copyId = () => {
+  copy({ text: status.value?.deviceID ?? "" }).then(
+    () => $showSuccess(t("success.linkCopied")),
+    () => {}
+  );
+};
+
+// The source port of an incoming connection is random, so keep only the host.
+const hostOf = (address: string) => address.replace(/:\d+$/, "");
+
+const modeLabel = (mode: SyncMode) =>
+  ({
+    oneway: t("sync.modeOneWay"),
+    twoway: t("sync.modeTwoWay"),
+    receive: t("sync.modeReceive"),
+  })[mode];
+
+const remoteNames = (folder: SyncFolder) =>
+  folder.remotes
+    .map(
+      (r) =>
+        status.value?.devices.find((d) => d.id === r.deviceID)?.name ??
+        r.deviceID.slice(0, 7)
+    )
+    .join(", ");
+
+const minCompletion = (folder: SyncFolder) =>
+  folder.remotes.length === 0
+    ? 100
+    : Math.min(...folder.remotes.map((r) => r.completion));
+
+const stateClass = (folder: SyncFolder) => {
+  if (folder.error) return "err";
+  if (folder.paused) return "off";
+  if (folder.remotes.length > 0 && folder.remotes.every((r) => !r.connected))
+    return "off";
+  if (folder.state === "idle" && minCompletion(folder) >= 100) return "ok";
+  return "busy";
+};
+
+const stateLabel = (folder: SyncFolder) => {
+  if (folder.error) return `${t("sync.error")}: ${folder.error}`;
+  if (folder.paused) return t("sync.paused");
+  if (folder.remotes.length > 0 && folder.remotes.every((r) => !r.connected))
+    return t("sync.disconnected");
+  if (folder.state === "idle" && minCompletion(folder) >= 100)
+    return t("sync.upToDate");
+  if (folder.state === "idle")
+    return t("sync.remoteSyncing", {
+      percent: Math.floor(minCompletion(folder)),
+    });
+  if (folder.state === "scanning") return t("sync.scanning");
+  return t("sync.syncing");
+};
+
+const togglePause = (folder: SyncFolder) =>
+  run(() => api.setPaused(folder.id, !folder.paused));
+
+const removeFolder = (folder: SyncFolder) => {
+  if (!window.confirm(t("sync.confirmStop", { path: folder.path }))) return;
+  run(() => api.removeFolder(folder.id));
+};
+
+const removeDevice = (device: SyncDevice) => {
+  if (!window.confirm(t("sync.confirmRemoveDevice", { name: device.name })))
+    return;
+  run(() => api.removeDevice(device.id));
+};
+
+const dismissDevice = (p: SyncPendingDevice) =>
+  run(() => api.dismissPendingDevice(p.id));
+
+const dismissFolder = (p: SyncPendingFolder) =>
+  run(() => api.dismissPendingFolder(p.id, p.deviceID));
+
+const startAccept = (p: SyncPendingFolder) => {
+  acceptingFolder.value = p.id + p.deviceID;
+  acceptPath.value = "/" + p.label.replace(/[\\/]/g, "_");
+  acceptMode.value = "receive";
+};
+
+const acceptFolder = async (p: SyncPendingFolder) => {
+  await run(
+    () =>
+      api.acceptFolder({
+        folderID: p.id,
+        deviceID: p.deviceID,
+        path: acceptPath.value,
+        mode: acceptMode.value,
+      }),
+    t("sync.accepted")
+  );
+  acceptingFolder.value = null;
+};
+</script>
+
+<style scoped>
+.row .column.sync-column {
+  width: 100%;
+}
+
+.sync-stack {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-stack .card {
+  margin-bottom: 1em;
+}
+
+.sync-id {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.sync-id code {
+  word-break: break-all;
+}
+
+.pending {
+  margin-bottom: 1.2em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid var(--divider);
+}
+
+.pending small {
+  display: block;
+  opacity: 0.6;
+  word-break: break-all;
+}
+
+.field {
+  display: block;
+  margin-bottom: 0.8em;
+}
+
+.field > span {
+  display: block;
+  margin-bottom: 0.2em;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.field small {
+  display: block;
+  margin-top: 0.2em;
+  opacity: 0.7;
+}
+
+.sync-state.ok {
+  color: #43a047;
+}
+
+.sync-state.busy {
+  color: #1e88e5;
+}
+
+.sync-state.off {
+  opacity: 0.6;
+}
+
+.sync-state.err {
+  color: #e53935;
+}
+</style>
