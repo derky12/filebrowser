@@ -1,0 +1,72 @@
+# syntax=docker/dockerfile:1
+#
+# Builds File Browser from source for linux/amd64 and linux/arm64 (any
+# platform buildx supports, really). The frontend and the Go compilation always
+# run natively on the build machine; Go cross-compiles for the target, so no
+# QEMU emulation is needed for the heavy steps.
+#
+# The final stage runs one `apk add` inside the target architecture, so building
+# a foreign architecture needs QEMU/binfmt once per host:
+#   docker run --privileged --rm tonistiigi/binfmt --install all
+#
+#   docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile.multiarch -t <name> .
+#   docker buildx build --platform linux/arm64 -f Dockerfile.multiarch -t <name> --load .
+
+ARG NODE_VERSION=24
+ARG GO_VERSION=1.25
+ARG ALPINE_VERSION=3.23
+
+## Stage 1: frontend (architecture independent, built once)
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS frontend
+WORKDIR /src/frontend
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml* ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+COPY frontend/ ./
+RUN pnpm run build
+
+## Stage 2: backend, cross-compiled for the target platform
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS backend
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG VERSION=dev
+ARG COMMIT=unknown
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+COPY --from=frontend /src/frontend/dist ./frontend/dist
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    GOARM=$(echo "${TARGETVARIANT}" | sed 's/^v//') \
+    go build -trimpath \
+      -ldflags="-s -w \
+        -X github.com/filebrowser/filebrowser/v2/version.Version=${VERSION} \
+        -X github.com/filebrowser/filebrowser/v2/version.CommitSHA=${COMMIT}" \
+      -o /out/filebrowser .
+
+## Stage 3: runtime image (same layout as the official Dockerfile)
+FROM alpine:${ALPINE_VERSION}
+
+RUN apk add --no-cache ca-certificates mailcap tini su-exec jq
+
+ENV PUID=1000 \
+    PGID=1000
+
+COPY docker/common/ /
+COPY docker/alpine/init.sh /init.sh
+COPY --from=backend /out/filebrowser /bin/filebrowser
+COPY docker/multiarch/entrypoint.sh /entrypoint.sh
+
+RUN mkdir -p /config /database /srv \
+    && chmod +x /healthcheck.sh /init.sh /entrypoint.sh
+
+HEALTHCHECK --start-period=2s --interval=5s --timeout=3s CMD /healthcheck.sh
+
+VOLUME /srv /config /database
+EXPOSE 80
+
+ENTRYPOINT [ "tini", "--", "/entrypoint.sh" ]

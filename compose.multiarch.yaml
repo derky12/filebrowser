@@ -1,0 +1,21 @@
+# Private deployment example for Dockerfile.multiarch.
+# Build once per machine (or push a multi-arch image to your own registry):
+#   docker compose -f compose.multiarch.yaml up -d --build
+services:
+  filebrowser:
+    build:
+      context: .
+      dockerfile: Dockerfile.multiarch
+    image: filebrowser-local:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+    ports:
+      # Bind to the Tailscale address only, e.g. "100.x.y.z:8080:80"
+      - "8080:80"
+    volumes:
+      - ./srv:/srv
+      - ./config:/config
+      - ./database:/database
