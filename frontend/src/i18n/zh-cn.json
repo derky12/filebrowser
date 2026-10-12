@@ -188,6 +188,14 @@
     "confirmStop": "停止同步 {path}？两边的文件都会保留。",
     "confirmRemoveDevice": "移除设备 {name}？"
   },
+  "editor": {
+    "format": "格式化 {language}（Alt+Shift+F）",
+    "formatOnSave": "保存时格式化",
+    "formatOnSaveHelp": "每次保存时用该语言的格式化工具整理文件",
+    "alreadyFormatted": "已经是规范格式",
+    "formatted": "已按 {language} 格式化",
+    "formatFailed": "无法格式化 {language}"
+  },
   "perms": {
     "title": "权限",
     "nItems": "{n} 个项目",

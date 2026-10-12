@@ -74,6 +74,8 @@ func NewHandler(
 	api.PathPrefix("/tus").Handler(monkey(tusPatchHandler(uploadCache), "/api/tus")).Methods("PATCH")
 	api.PathPrefix("/tus").Handler(monkey(tusDeleteHandler(uploadCache), "/api/tus")).Methods("DELETE")
 
+	api.Handle("/format/{lang}", monkey(formatHandler, "")).Methods("POST")
+
 	api.PathPrefix("/permissions").Handler(monkey(permissionsGetHandler, "/api/permissions")).Methods("GET")
 	api.PathPrefix("/permissions").Handler(monkey(permissionsPatchHandler, "/api/permissions")).Methods("PATCH")
 

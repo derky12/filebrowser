@@ -316,6 +316,10 @@ var permissionsPatchHandler = withUser(func(w http.ResponseWriter, r *http.Reque
 			entryMode = fileMode
 		}
 
+		if entryMode == nil && uid == nil && gid == nil {
+			continue // nothing to change for this entry
+		}
+
 		if err := applyPermissions(entry.real, entryMode, uid, gid); err != nil {
 			result.Failed++
 			if i == 0 && len(entries) == 1 {

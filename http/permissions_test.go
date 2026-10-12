@@ -149,6 +149,28 @@ func TestPermissionsChmodRecursive(t *testing.T) {
 	}
 }
 
+func TestPermissionsRecursiveWithoutOwnMode(t *testing.T) {
+	env, call := newPermEnv(t, modifyPerm)
+	writePermFile(t, filepath.Join(env.scope, "tree", "f.txt"), 0o600)
+	if err := os.Chmod(filepath.Join(env.scope, "tree"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := call(permissionsPatchHandler, http.MethodPatch, "/api/permissions/tree", `{"recursive":true,"fileMode":"0644"}`)
+	var res permissionsResult
+	_ = json.Unmarshal(rec.Body.Bytes(), &res)
+	// Only f.txt changes: the folder has no mode of its own in the request.
+	if rec.Code != http.StatusOK || res.Changed != 1 {
+		t.Fatalf("status=%d result %+v", rec.Code, res)
+	}
+	if got := permModeOf(t, filepath.Join(env.scope, "tree")); got != 0o700 {
+		t.Fatalf("folder mode changed to %o", got)
+	}
+	if got := permModeOf(t, filepath.Join(env.scope, "tree", "f.txt")); got != 0o644 {
+		t.Fatalf("file mode=%o, want 644", got)
+	}
+}
+
 func TestPermissionsRejections(t *testing.T) {
 	env, call := newPermEnv(t, modifyPerm, "/secret")
 	writePermFile(t, filepath.Join(env.scope, "a.txt"), 0o644)

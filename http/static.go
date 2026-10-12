@@ -151,7 +151,10 @@ func getStaticHandlers(store *storage.Storage, server *settings.Server, assetsFs
 
 		f, err := assetsFs.Open(r.URL.Path + ".gz")
 		if err != nil {
-			return http.StatusNotFound, err
+			// Not every script has a precompressed copy: the build skips tiny
+			// ones. Serve those as they are.
+			http.FileServer(http.FS(assetsFs)).ServeHTTP(w, r)
+			return 0, nil
 		}
 		defer f.Close()
 

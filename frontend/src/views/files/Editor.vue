@@ -17,6 +17,14 @@
       />
 
       <action
+        v-if="formatter && !readOnly"
+        id="format-button"
+        icon="auto_fix_high"
+        :label="t('editor.format', { language: formatter.label })"
+        @action="format()"
+      />
+
+      <action
         v-if="authStore.user?.perm.modify"
         id="save-button"
         icon="save"
@@ -45,6 +53,18 @@
         <Breadcrumbs base="/files" noLink />
 
         <div>
+          <label
+            v-if="formatter && !readOnly"
+            class="format-toggle"
+            :title="t('editor.formatOnSaveHelp')"
+          >
+            <input
+              type="checkbox"
+              v-model="formatOnSave"
+              @change="saveFormatOnSave"
+            />
+            {{ t("editor.formatOnSave") }}
+          </label>
           <button
             :disabled="isSelectionEmpty"
             @click="executeEditorCommand('copy')"
@@ -81,7 +101,11 @@
 import { files as api } from "@/api";
 import buttons from "@/utils/buttons";
 import url from "@/utils/url";
-import ace, { Ace, version as ace_version } from "ace-builds";
+import ace, { Ace } from "ace-builds";
+import "@fontsource/jetbrains-mono/latin-400.css";
+import "@fontsource/jetbrains-mono/latin-700.css";
+import { setupAceAssets } from "@/utils/editor/aceAssets";
+import { formatCode, formatterFor, indentFor } from "@/utils/editor/formatters";
 import "ace-builds/src-noconflict/ext-language_tools";
 import modelist from "ace-builds/src-noconflict/ext-modelist";
 import DOMPurify from "dompurify";
@@ -101,6 +125,7 @@ import { onBeforeRouteUpdate, useRoute, useRouter } from "vue-router";
 import { read, copy } from "@/utils/clipboard";
 
 const $showError = inject<IToastError>("$showError")!;
+const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
 
 const fileStore = useFileStore();
 const authStore = useAuthStore();
@@ -112,7 +137,17 @@ const route = useRoute();
 const router = useRouter();
 
 const editor = ref<Ace.Editor | null>(null);
-const fontSize = ref(parseInt(localStorage.getItem("editorFontSize") || "14"));
+const DEFAULT_FONT_SIZE = 16;
+const FONT_FAMILY =
+  '"JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace';
+const fontSize = ref(
+  parseInt(localStorage.getItem("editorFontSize") || String(DEFAULT_FONT_SIZE))
+);
+
+const fileName = fileStore.req?.name ?? "";
+const formatter = formatterFor(fileName);
+const readOnly = fileStore.req?.type === "textImmutable";
+const formatOnSave = ref(localStorage.getItem("editorFormatOnSave") === "true");
 
 const isPreview = ref(false);
 const previewContent = ref("");
@@ -172,10 +207,7 @@ onMounted(() => {
     }
   });
 
-  ace.config.set(
-    "basePath",
-    `https://cdn.jsdelivr.net/npm/ace-builds@${ace_version}/src-min-noconflict/`
-  );
+  setupAceAssets();
 
   if (!layoutStore.loading) {
     initEditor(fileContent);
@@ -226,12 +258,23 @@ const initEditor = (fileContent: string) => {
     theme: getEditorTheme(authStore.user?.aceEditorTheme ?? ""),
     mode: modelist.getModeForPath(fileStore.req!.name).mode,
     wrap: true,
+    fontFamily: FONT_FAMILY,
+    tabSize: indentFor(fileName).tabWidth,
+    useSoftTabs: !indentFor(fileName).useTabs,
+    displayIndentGuides: true,
+    highlightActiveLine: true,
+    scrollPastEnd: 0.25,
     enableBasicAutocompletion: true,
     enableLiveAutocompletion: true,
     enableSnippets: true,
   });
 
   editor.value.setFontSize(fontSize.value);
+  editor.value.commands.addCommand({
+    name: "formatDocument",
+    bindKey: { win: "Alt-Shift-F", mac: "Alt-Shift-F" },
+    exec: () => format(),
+  });
   editor.value.focus();
 
   const selection = editor.value?.getSelection();
@@ -271,6 +314,10 @@ const save = async (throwError?: boolean) => {
   buttons.loading("save");
 
   try {
+    if (formatOnSave.value && formatter && !readOnly) {
+      // A file that cannot be formatted (e.g. a syntax error) is still saved.
+      await format(true);
+    }
     await api.put(route.path, editor.value?.getValue());
     editor.value?.session.getUndoManager().markClean();
     buttons.success(button);
@@ -278,6 +325,48 @@ const save = async (throwError?: boolean) => {
     buttons.done(button);
     $showError(e);
     if (throwError) throw e;
+  }
+};
+
+const saveFormatOnSave = () => {
+  localStorage.setItem("editorFormatOnSave", String(formatOnSave.value));
+};
+
+// Formats the whole document, keeping the cursor and the undo history (the
+// result is a single undoable edit). With quiet set, only failures are shown.
+const format = async (quiet = false) => {
+  const current = editor.value;
+  if (!current || !formatter) return;
+
+  const doc = current.session.getDocument();
+  const text = current.getValue();
+  const cursor = doc.positionToIndex(current.getCursorPosition());
+
+  try {
+    const result = await formatCode(fileName, text, cursor);
+    if (result.text === text) {
+      if (!quiet) $showSuccess(t("editor.alreadyFormatted"));
+      return;
+    }
+
+    const lastRow = doc.getLength() - 1;
+    current.session.replace(
+      {
+        start: { row: 0, column: 0 },
+        end: { row: lastRow, column: doc.getLine(lastRow).length },
+      },
+      result.text
+    );
+    current.moveCursorToPosition(doc.indexToPosition(result.cursor, 0));
+    current.renderer.scrollCursorIntoView();
+    if (!quiet)
+      $showSuccess(t("editor.formatted", { language: formatter.label }));
+  } catch (e) {
+    $showError(
+      t("editor.formatFailed", { language: formatter.label }) +
+        ": " +
+        ((e as Error).message ?? e)
+    );
   }
 };
 
@@ -330,6 +419,18 @@ const preview = () => {
 .editor-font-size {
   margin: 0 0.5em;
   color: var(--fg);
+}
+
+:global(#editor.ace_editor) {
+  line-height: 1.6;
+}
+
+.format-toggle {
+  margin-right: 0.8em;
+  font-size: 0.85em;
+  opacity: 0.85;
+  cursor: pointer;
+  user-select: none;
 }
 
 .editor-header {

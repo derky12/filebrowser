@@ -188,6 +188,14 @@
     "confirmStop": "Stop syncing {path}? Files on both devices are kept.",
     "confirmRemoveDevice": "Remove the device {name}?"
   },
+  "editor": {
+    "format": "Format {language} (Alt+Shift+F)",
+    "formatOnSave": "Format on save",
+    "formatOnSaveHelp": "Format the file with its language formatter every time it is saved",
+    "alreadyFormatted": "Already formatted",
+    "formatted": "Formatted as {language}",
+    "formatFailed": "Could not format {language}"
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",
