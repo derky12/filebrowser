@@ -12,59 +12,48 @@
 # See the README for how folder syncing works.
 services:
   filebrowser:
-    # The tag has an amd64 and an arm64 image; Docker takes the one of `platform`.
-    image: q25459768/filebrowser:${FB_TAG:-latest}
-    platform: linux/${ARCH:?set ARCH in .env (amd64 or arm64)}
+    image: q25459768/filebrowser:latest
+    platform: linux/${ARCH}
     container_name: filebrowser
     restart: unless-stopped
     depends_on:
       - syncthing
     environment:
-      - PUID=${PUID:-0}
-      - PGID=${PGID:-0}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - FB_NOAUTH=true
       - FB_SYNCTHING_URL=http://syncthing:8384
-      - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY:?set SYNCTHING_API_KEY in .env}
+      - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY}
       - FB_SYNCTHING_PRIVATE_NETWORK=true
-      # Port assumed for device addresses entered without one; keep it equal to SYNC_PORT.
-      - FB_SYNCTHING_PORT=${SYNC_PORT:-23000}
+      - FB_SYNCTHING_PORT=${SYNC_PORT}
     ports:
-      - "${HOST_IP:?set HOST_IP in .env}:${WEB_PORT:-38002}:80"
+      - "${HOST_IP}:${WEB_PORT}:80"
     volumes:
-      - ${DATA_DIR:-/root}:/srv
+      - ${DATA_DIR}:/srv
       - ./config:/config
       - ./database:/database
-    # The served folder may be a home directory, so hide ~/.ssh: an empty
-    # read-only tmpfs covers it inside the container (the real directory on the
-    # host is not touched). Add more lines like this for other secrets, e.g.
-    # /srv/.gnupg.
     tmpfs:
       - /srv/.ssh:ro,size=4k,mode=0555
 
-  # Does the actual syncing. File Browser is the UI for it, but Syncthing's own
-  # web interface is published too, on SYNCTHING_GUI_PORT. It has no password
-  # until you set one in its Settings > GUI, so keep it on the Tailscale address.
   syncthing:
     image: syncthing/syncthing:2
-    platform: linux/${ARCH:?set ARCH in .env (amd64 or arm64)}
+    platform: linux/${ARCH}
     container_name: filebrowser-syncthing
-    hostname: ${SYNCTHING_NAME:-filebrowser} # the device name the other side sees; differs per machine
+    hostname: ${SYNCTHING_NAME}
     restart: unless-stopped
     environment:
-      - PUID=${PUID:-0}
-      - PGID=${PGID:-0}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - STGUIADDRESS=0.0.0.0:8384
-      - STGUIAPIKEY=${SYNCTHING_API_KEY:?set SYNCTHING_API_KEY in .env}
+      - STGUIAPIKEY=${SYNCTHING_API_KEY}
       - STNODEFAULTFOLDER=1
     ports:
-      # host port : container port. Change the host ports in .env, never the
-      # container ports.
-      - "${HOST_IP:?set HOST_IP in .env}:${SYNCTHING_GUI_PORT:-38003}:8384"
-      - "${HOST_IP:?set HOST_IP in .env}:${SYNC_PORT:-23000}:22000/tcp"
-      - "${HOST_IP:?set HOST_IP in .env}:${SYNC_PORT:-23000}:22000/udp"
-      - "${HOST_IP:?set HOST_IP in .env}:${DISCOVERY_PORT:-23001}:21027/udp"
+      - "${HOST_IP}:${SYNCTHING_GUI_PORT}:8384"
+      - "${HOST_IP}:${SYNC_PORT}:22000/tcp"
+      - "${HOST_IP}:${SYNC_PORT}:22000/udp"
+      - "${HOST_IP}:${DISCOVERY_PORT}:21027/udp"
     volumes:
-      - ${DATA_DIR:-/root}:/srv # must be the same folder as File Browser's
+      - ${DATA_DIR}:/srv
       - ./syncthing-config:/var/syncthing/config
     tmpfs:
       - /srv/.ssh:ro,size=4k,mode=0555
