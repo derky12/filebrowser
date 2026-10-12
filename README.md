@@ -14,15 +14,54 @@ File Browser provides a file managing interface within a specified directory and
 
 这是 `filebrowser/filebrowser` 的私人维护分支（上游已于 2026-09-01 归档）。在上游 v2.63.23 的基础上增加了下面这些功能。所有改动都遵循上游的代码风格，并带有测试；下面的内容以代码为准。
 
-| 功能 | 用途 | 位置 |
+### 功能总览
+
+**浏览与整理**
+
+| 功能 | 怎么用 | 详情 |
 |---|---|---|
-| [剪切 / 粘贴按钮](#剪切--粘贴按钮) | 不用键盘也能剪切、粘贴 | 前端 |
-| [收藏夹](#收藏夹) | 常用文件夹点星号，出现在侧栏，可以直接把文件拖进去 | 后端 + 前端 |
-| [文件夹颜色](#文件夹颜色) | 用预设色板给文件夹换颜色 | 后端 + 前端 |
-| [文件夹同步](#文件夹同步) | 在 File Browser 里把一个文件夹同步到另一台机器（单向/双向，对方同意后生效） | 后端 + 前端 + Syncthing |
-| [右键权限](#右键权限chmod--chown) | 右键修改文件和文件夹的 chmod / chown | 后端 + 前端 |
-| [文本编辑器](#文本编辑器) | 大号编程字体、按语言缩进、按后缀自动格式化、离线语法高亮 | 后端 + 前端 |
-| [多架构 Docker 构建](#多架构-docker-构建与发布) | 从源码构建 amd64 / arm64 镜像，带版本号和变更记录 | Docker |
+| 剪切 / 粘贴按钮 | 选中文件后点顶栏的 ✂ 剪切，到目标文件夹点粘贴 | [详情](#剪切--粘贴按钮) |
+| 收藏夹 | 文件夹上点星号，出现在侧栏，可以直接把文件拖进去（移动，Ctrl/Cmd 为复制） | [详情](#收藏夹) |
+| 文件夹颜色 | 文件夹上的调色板按钮，10 种预设色 | [详情](#文件夹颜色) |
+| 双栏模式 | 侧栏“双栏”：左右两个文件夹并排，拖放、F5 复制、F6 移动 | [详情](#双栏模式) |
+| 批量重命名 | 选中多个项目 → “批量重命名”：查找替换（支持正则）、前后缀、大小写、编号，带实时预览 | [详情](#批量重命名与复制一份) |
+| 复制一份 | 选中项目 → “复制一份”，在原位置生成 `名称(1)` | [详情](#批量重命名与复制一份) |
+| 压缩 / 解压 | 选中项目 → “压缩”（zip、tar.gz、tar.xz、tar.zst 等）；选中压缩包 → “解压” | [详情](#压缩与解压) |
+| 磁盘占用 | 顶栏“磁盘占用”：按大小显示每个子项占多少，逐层钻取 | [详情](#磁盘占用) |
+
+**安全与找回**
+
+| 功能 | 怎么用 | 详情 |
+|---|---|---|
+| 回收站 | 删除先进回收站，可还原；设置里可开关，并限制占用空间和保留天数 | [详情](#回收站) |
+| 活动日志 | 设置 → 活动：谁在什么时候从哪里做了什么 | [详情](#活动日志) |
+| 右键权限 | 右键 → 权限：修改 chmod / chown，可递归 | [详情](#右键权限chmod--chown) |
+| 隐藏 `~/.ssh` | 容器里把 `/srv/.ssh` 盖成空目录 | [详情](#挂载-root-的安全说明) |
+
+**多机同步**
+
+| 功能 | 怎么用 | 详情 |
+|---|---|---|
+| 文件夹同步 | 选中文件夹 → “同步文件夹”，选对方设备和单向/双向，对方在“设置 → 同步”里接受后生效 | [详情](#文件夹同步) |
+| 同步状态与速度 | 设置 → 同步：每个目录的状态、剩余量，每台设备的实时速度和累计传输量 | [详情](#状态与速度) |
+| 同步冲突处理 | 两台设备改了同一个文件时，选择保留哪个版本，另一个进回收站 | [详情](#冲突忽略规则限速与标记) |
+| 忽略规则 | 每个同步目录可以编辑 `.stignore` 风格的忽略规则 | [详情](#冲突忽略规则限速与标记) |
+| 同步限速 | 设置 → 同步 → 带宽：下载 / 上传限速 | [详情](#冲突忽略规则限速与标记) |
+| 同步标记 | 文件列表里已同步的文件夹带一个状态图标 | [详情](#冲突忽略规则限速与标记) |
+
+**编辑**
+
+| 功能 | 怎么用 | 详情 |
+|---|---|---|
+| 文本编辑器 | 16px JetBrains Mono，按语言缩进，Alt+Shift+F 格式化（YAML、JSON、JS/TS、CSS、HTML、Vue、Markdown、Python、SQL、Go），保存时格式化，离线语法高亮和检查 | [详情](#文本编辑器) |
+
+**部署与发布**
+
+| 功能 | 怎么用 | 详情 |
+|---|---|---|
+| 多架构 Docker | 一份 `Dockerfile.multiarch` 构建 amd64 和 arm64 镜像 | [详情](#多架构-docker-构建与发布) |
+| docker-compose + `.env` | IP、端口、挂载目录、设备名都在 `.env` 里 | [详情](#部署) |
+| 版本号与变更记录 | 镜像带版本 tag 和变更标签，git 打标签，一条命令发布两个架构 | [详情](#多架构-docker-构建与发布) |
 
 ### 分支、镜像与机器
 
@@ -31,8 +70,8 @@ File Browser provides a file managing interface within a specified directory and
 | `main` | amd64 | `q25459768/filebrowser:amd64`（`platform: linux/amd64`） | `100.64.0.7` | `fb-amd64` |
 | `arm64` | arm64 | `q25459768/filebrowser:arm64`（`platform: linux/arm64`） | `100.64.0.30` | `fb-arm64` |
 
-- 两个分支的代码完全相同，**只有 `docker-compose.yml` 里每台机器自己的 9 行不同**：头部注释、File Browser 镜像 tag、两个服务的 `platform`（`linux/amd64` / `linux/arm64`）、Web 端口的 IP、Syncthing 主机名、同步端口和发现端口的 IP。
-- 修改 `main` 之后，把 `main` 合并进 `arm64`，再把 `docker-compose.yml` 里这 9 行换成 arm64 的值。
+- 两个分支的代码完全相同。**每台机器自己的值都在 `.env` 里**（不提交，见 `.env.example` 和[部署](#部署)），所以 `docker-compose.yml` 在两个分支上只差 5 行：头部注释、File Browser 镜像的默认 tag、两个服务的 `platform`（`linux/amd64` / `linux/arm64`）、Syncthing 的默认设备名；`.env.example` 里的示例值（`HOST_IP`、`SYNCTHING_NAME`、`FB_TAG`）也各用自己机器的。
+- 修改 `main` 之后，把 `main` 合并进 `arm64`，再把 `docker-compose.yml` 和 `.env.example` 里这些值换成 arm64 的。
 - 仓库里还保留上游自带的 `compose.yaml`（带 redis）。因为它优先于 `docker-compose.yml`，所以启动时必须写 `-f docker-compose.yml`。
 - `compose.multiarch.yaml` 是一份不含 Syncthing、从源码构建的简单示例，日常不用。
 
@@ -65,6 +104,24 @@ File Browser provides a file managing interface within a specified directory and
 - **为什么不放进 JWT**：前端的用户信息来自登录令牌（JWT）解码的 `userInfo`，里面没有这两个字段。把它们塞进令牌会超出 cookie 的 4 KB 上限（100 个路径）。
 - **曾经出过的 bug**：每次进入子目录都会刷新令牌并用令牌里的用户整个覆盖当前用户，导致收藏夹消失。现在的做法（`frontend/src/stores/auth.ts`）：登录后调用一次 `loadUserData()` 读取这两个字段；`setUser()` 在令牌刷新时保留已加载的值，并且只在同一个用户 ID 下保留，避免串号；修改时先更新本地状态，保存失败则回滚。
 - **已知限制**：它们都是按路径记录的。在 File Browser 里重命名或移动文件夹之后，收藏夹和颜色不会跟着走。
+
+### 回收站
+
+- **用法**：删除文件或文件夹时先移到回收站。删除确认框里有“永久删除（跳过回收站）”选项。侧栏的“回收站”页面列出所有已删除的项目（名称、原位置、大小、删除时间），可以**还原**、**永久删除**或**清空回收站**。
+- **在设置里开关和限制空间**：设置 → 全局设置 → 回收站：“删除时使用回收站”开关，“最多保留（GB）”（0 不限制），“保留天数”（0 表示一直保留到需要空间）。没有设置过时的默认值是：开启、10 GiB、30 天。
+- **存储方式**：每个用户 scope 下的 `/.trash/<id>/data` 是被删除的文件或文件夹，`/.trash/<id>/meta.json` 记录原路径、名称、是否文件夹、大小、删除时间和操作者。同一文件系统内是改名，所以很快；大小在删除时统计（最多花 10 秒，超过则只统计一部分作为估值）。
+- **空间限制**：每次放入和每次打开回收站页面时，先清理超过保留天数的项目，再从最旧的开始清理，直到总大小不超过上限。**单个项目比整个上限还大时不会进回收站，而是直接永久删除**，并提示“太大，放不进回收站”（响应头 `X-Trash: deleted`，放进去的是 `trashed`）。
+- **还原**：还原到原路径，原来的文件夹不存在会自动创建；原位置已经有同名项目时返回 409，界面会问是否在旁边还原为副本（`名称(1).扩展名`）。
+- **其他**：在 `/.trash` 里删除是永久删除；回收站是普通文件夹，在文件列表里也能看到；需要有 `delete` 权限，还原还需要 `create` 权限。同步冲突里被丢弃的版本也放进回收站。
+- **接口**：`GET /api/trash`（列表、总大小和当前设置）、`POST /api/trash/{id}/restore[?rename=true]`、`DELETE /api/trash/{id}`、`DELETE /api/trash`（清空）；`DELETE /api/resources/{path}[?permanent=true]` 删除。设置在 `GET/PUT /api/settings` 的 `trash` 字段（`{enabled, maxBytes, days}`）。
+- **注意**：在双向同步的目录里删除文件，文件会离开同步目录，对方也会删除它（对方由 Syncthing 的回收站版本管理保护）；在本机回收站里还原会让它重新同步回去。
+
+### 活动日志
+
+- **用法**：设置 → 活动（仅管理员）：时间、用户、操作、路径（移动、复制、重命名会显示 `原路径 → 新路径`）、详情、来源地址；可以按操作类型和用户筛选，按路径或详情搜索，“显示更多”翻页，可勾选每 5 秒自动刷新。
+- **记录的操作**：新建文件夹、上传、保存、删除（含移入回收站）、重命名、移动、复制、分享、登录和登录失败、修改权限、还原、从回收站删除、压缩、解压，以及同步的发起、接受、停止、暂停、继续、添加和移除设备、处理冲突、修改忽略规则和限速。失败的操作不记录；没有认证（`FB_NOAUTH`）时每次打开页面都会“登录”，所以不记录登录。
+- **存储**：放在 File Browser 自己的数据库里（`activity` 包，bolt 后端）。保留天数由 `--activityDays`（环境变量 `FB_ACTIVITY_DAYS`，默认 90，0 关闭记录）决定，最多 50000 条，每写入 200 条清理一次过期的。
+- **接口**：`GET /api/activity?user=&action=&q=&limit=&offset=`（管理员，新的在前，返回 `{items, total}`）。
 
 ### 文件夹同步
 
@@ -140,6 +197,13 @@ File Browser 创建的目录使用：ID 为 `fb-` 加 10 位随机十六进制�
 - **速度**：Syncthing 只给出每个连接自建立以来的累计收发字节数（`inBytesTotal` / `outBytesTotal`），所以速度由前端用相邻两次轮询的差值除以服务器时间差算出（`frontend/src/utils/syncRate.ts`）；计数器变小（重新连接）按 0 处理。设备表显示每台设备的 ↓/↑ 速度和累计传输量，目录卡片顶部显示总速度。刚打开页面的头几秒会是 0，需要两次采样。
 - Syncthing 没有按目录统计的速度，所以速度只能按设备显示。
 
+#### 冲突、忽略规则、限速与标记
+
+- **同步标记**：文件列表里，已同步的文件夹（同步目录的根）左上角有一个同步图标：绿色已同步、蓝色同步中、灰色暂停或对方离线、红色出错。只对管理员显示，每 8 秒更新一次状态。
+- **冲突**：两台设备改了同一个文件，Syncthing 会把其中一个版本改名为 `名称.sync-conflict-日期-时间-设备.扩展名`。设置 → 同步里的“冲突”卡片列出这些文件（只在同步目录里找，跳过 `.stfolder` 和 `.stversions`，最多 1000 个），显示本机版本和对方版本的大小和时间，可以选**保留本机的**（删除冲突文件）或**保留对方的**（对方的版本取代原文件）；被丢弃的那个版本放进回收站（回收站关闭时直接删除）。接口：`GET /api/sync/conflicts`、`POST /api/sync/conflicts/resolve {path, keep: "conflict"|"original"}`。
+- **忽略规则**：每个同步目录行上的“忽略规则”按钮打开编辑框，每行一个规则（`*.tmp`、`node_modules`、`/build`、`(?d).DS_Store`，`!` 开头表示重新包含，`//` 开头是注释）。被忽略的文件既不发送也不接收。服务器拒绝 `#include`（它会让 Syncthing 读取其他文件），最多 1000 行、每行 500 个字符。接口：`GET/PUT /api/sync/folders/{id}/ignores`（`{lines: []}`）。
+- **限速**：设置 → 同步 → 带宽：下载限速和上传限速（KiB/s，0 不限），以及“局域网内的连接也限速”（Tailscale 地址在 Syncthing 看来属于局域网，要让限速生效必须勾选）。接口：`GET/PUT /api/sync/limits`（`{maxRecvKbps, maxSendKbps, limitBandwidthInLan}`，0–10000000）。
+
 #### 配置项
 
 只有设置了 `--syncthingUrl` 才会启用整个功能（设置页的“同步”标签才会出现）。这些参数只在运行时生效，不会写入数据库，API key 也不会发给浏览器。
@@ -150,6 +214,7 @@ File Browser 创建的目录使用：ID 为 `fb-` 加 10 位随机十六进制�
 | `--syncthingApiKey` | `FB_SYNCTHING_API_KEY` | 无 | 设置了 URL 时必填 |
 | `--syncthingPort` | `FB_SYNCTHING_PORT` | `22000` | 添加设备时地址没写端口所用的同步端口；必须是 1–65535 |
 | `--syncthingPrivateNetwork` | `FB_SYNCTHING_PRIVATE_NETWORK` | `false` | 启动时自动关闭 Syncthing 的全球发现、本地发现、中继、NAT 穿透和使用统计（`urAccepted=-1`）；Syncthing 比 File Browser 晚启动时会每 5 秒重试，最多 60 次 |
+| `--activityDays` | `FB_ACTIVITY_DAYS` | `90` | 活动日志保留的天数，0 关闭记录（见[活动日志](#活动日志)） |
 
 #### 端口
 
@@ -213,6 +278,32 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - **体积**：前端产物从约 12 MB 增加到约 35 MB（Ruff wasm 10.5 MB、Ace 资源约 6 MB、Prettier 各语言插件和字体），Go 二进制相应变大，但这些文件都是按需下载的。
 - **顺带的修复**：静态文件处理器原来对所有 `.js` 文件只提供预压缩的 `.gz` 副本，没有副本就 404；构建会跳过极小的文件，所以这种脚本（例如导出 wasm 地址的小块）会 404。现在没有 `.gz` 时回退到原文件（`http/static_test.go`）。
 
+### 磁盘占用
+
+- **用法**：文件列表顶栏的“磁盘占用”（圆环图标），对当前文件夹，或选中的那一个文件夹。页面按大小从大到小列出每个子项：横条表示占整个文件夹的比例，显示大小、百分比和文件数；点文件夹逐层钻取，点面包屑回到上层，“在文件中打开”回到文件视图。
+- **实现**（`http/diskusage.go`）：`GET /api/du/{path}` 并发测量（4 个）每个子文件夹；不跟随符号链接；遵守访问规则（被规则禁止的项目不统计也不显示），点开头的文件和 `.trash` 都计入；整个请求最多 30 秒，没算完的文件夹标记为“不完整”（显示 `≥`）；完整的结果缓存 2 分钟（最多 5000 项），所以钻取和返回很快。
+- **限制**：大小是文件内容的大小（不是磁盘块占用）；硬链接会重复计算。
+
+### 压缩与解压
+
+- **压缩**：选中文件或文件夹 → “压缩”，输入名称、选格式：zip、tar、tar.gz、tar.bz2、tar.xz、tar.zst。压缩包建在当前文件夹，重名时自动加 `(1)`；选中的项目里有嵌套的，只打包外层；压缩包不会把自己打进去。
+- **解压**：选中压缩包 → “解压”，默认解压到旁边一个以压缩包命名的新文件夹（可以改），可勾选“替换已存在的文件”。支持 zip、tar（及 gz、bz2、xz、zst）、7z、rar。
+- **安全**（`http/archive.go`）：接口 `POST /api/archive`，`{action: "compress"|"extract", ...}`。解压时拒绝含 `..` 的条目（含反斜杠写法）、把绝对路径当作相对路径处理、**不创建符号链接和硬链接**、不处理设备等特殊文件、遵守访问规则、**默认不覆盖已有文件**；总解压大小限制 20 GiB、条目数限制 100 万，超出时返回 413，并且删除这次解压新建的文件夹，不留下一半的内容；不是合法压缩包返回 400；需要 `create` 权限（压缩还要能读取）。跳过的条目会在结果里报告数量和前几条原因。
+- **限制**：同步执行，很大的压缩包会让这个请求持续较久（关闭页面会取消）；解压出来的文件用服务器设置的文件和文件夹权限，不保留压缩包里的权限和所有者。
+
+### 批量重命名与复制一份
+
+- **批量重命名**：选中两个以上项目 → “批量重命名”：查找和替换（可选正则表达式、区分大小写）、名称前后加文字、字母大小写（小写、大写、首字母大写）、编号（起始值、步长、位数、分隔符、放在开头或结尾）。规则只作用于名称部分，文件的扩展名保持不变；规则按这个顺序依次应用。下面的预览表实时显示每个项目的新名字，**有问题时不能应用**：名称为空或含 `/`、过长、两个项目得到同一个名字、与未选中的已有项目重名、正则无效。
+- **互换名字**：当某个新名字正好是另一个被重命名项目的当前名字时，先改成临时名字再改成最终名字（`utils/batchRename.ts` 的 `renameSteps`），不会互相覆盖。
+- **复制一份**：选中项目 → “复制一份”，在原位置生成副本，已有同名时自动加 `(1)`、`(2)`。
+
+### 双栏模式
+
+- **用法**：侧栏的“双栏”（或文件列表顶栏的双栏图标，会把当前文件夹放在左栏）。左右各一个文件夹，点哪个栏就在哪个栏里操作（蓝色边框是当前栏）。
+- **拖放**：把选中的项目拖到另一个栏即**移动**，按住 **Ctrl / Cmd** 为**复制**；拖到某个文件夹行上就放进那个文件夹。同名时弹出和文件列表一样的冲突处理框。
+- **按钮和快捷键**：顶栏有“复制到另一栏”“移动到另一栏”“新建文件夹”“删除”“交换两栏”“刷新”。键盘：Tab 切换栏、F5 复制、F6 移动、F7 新建文件夹、Delete 删除（走回收站）、Backspace 上一级、Enter 打开、Ctrl/Cmd+A 全选、上下方向键移动选择。选择：单击、Ctrl/Cmd 单击切换、Shift 单击选择范围；双击文件夹进入，双击文件在文件视图里打开。表头点击排序（名称、大小、修改时间，文件夹始终在前）。
+- **其他**：两栏的路径记在浏览器里（`dualPanePaths`）；窄屏下两栏上下排列。它是独立的页面（`views/DualPane.vue`），不使用文件列表的选择状态；移动和复制复用 `utils/drop.ts` 的 `transferItems`。
+
 ### 多架构 Docker 构建与发布
 
 - **`Dockerfile.multiarch`**：从源码构建，三个阶段。① 在构建机上用 `node:24-alpine` 构建前端；② 在构建机上用 `golang:1.25-alpine` 交叉编译 Go 二进制（`CGO_ENABLED=0`，`-trimpath`，`-ldflags "-s -w"`，带 `VERSION` 和 `COMMIT`）；③ `alpine:3.23` 最终镜像，带 `tini`、`su-exec`、`jq`、`ca-certificates`、`mailcap`。前端和 Go 编译都在构建机上原生运行，不需要 QEMU。
@@ -225,7 +316,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
   - 想固定某个版本时，在 `.env` 里写 `FB_TAG=<版本>-amd64`（arm64 机器写 `-arm64`），compose 就会用它。
 - **发布流程**（`main` 为 amd64，`arm64` 分支为 arm64）：
   1. 在 `main` 上改好代码，把 `VERSION` 加一，并在 `CHANGES.md` 里写这个版本的变更，提交。
-  2. 合并进 `arm64` 分支，并把 `docker-compose.yml` 改回 arm64 的值（9 行，见上）。
+  2. 合并进 `arm64` 分支，并把 `docker-compose.yml` 和 `.env.example` 里的 arm64 值改回来（见上）。
   3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `100.64.0.30`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
   4. 在两台机器上 `docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。
   - `scripts/release.sh amd64|arm64` 可以单独构建并推送一个架构；`scripts/changes.sh <版本>` 打印某个版本的变更。
@@ -233,13 +324,29 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 
 ### 部署
 
-两个服务：`filebrowser` 和 `syncthing`。
+两个服务：`filebrowser` 和 `syncthing`。**每台机器自己的值都在 `.env` 里**（不提交，已在 `.gitignore`），`docker-compose.yml` 只引用变量。
 
-1. **首次**：创建 `.env`（见 `.env.example`）：`echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env`。这个密钥由两个容器共用，缺少时 compose 会直接报错。`.env` 和 `syncthing-config/` 已在 `.gitignore` 里。
-2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<Tailscale IP>:38002`。
-3. **`.env` 变量**：`SYNCTHING_API_KEY`（必填）、`SYNC_PORT`（默认 23000）、`DISCOVERY_PORT`（默认 23001）、`FB_TAG`（可选，固定 File Browser 镜像版本，默认 `amd64` / `arm64`）。
-4. **数据**：`/root` 挂到 `/srv`（两个容器必须一致）；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
-5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）。
+1. **首次**：`cp .env.example .env`，编辑 `HOST_IP`（这台机器的 Tailscale 地址）、`DATA_DIR`（要服务和同步的文件夹）等，再生成共用的密钥：`echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" >> .env`（要先删掉示例里的 `SYNCTHING_API_KEY=change-me` 那一行）。缺少必填的变量时 compose 会直接报错并说明。
+2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<HOST_IP>:<WEB_PORT>`，默认 `http://100.64.0.7:38002`。
+3. **`.env` 变量**：
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `HOST_IP` | **必填** | 这台机器的 Tailscale 地址；所有端口都只发布在它上面（忘了填会报错，不会退回到监听所有网卡） |
+| `SYNCTHING_API_KEY` | **必填** | File Browser 和 Syncthing 共用的密钥 |
+| `DATA_DIR` | `/root` | 宿主机上被服务和同步的文件夹，两个容器都挂到 `/srv`（必须是同一个） |
+| `WEB_PORT` | `38002` | File Browser 的网页端口 |
+| `SYNCTHING_GUI_PORT` | `38003` | Syncthing 自带网页界面的端口（映射到容器的 8384） |
+| `SYNC_PORT` | `23000` | 同步端口（TCP + UDP），所有机器用同一个值；添加设备时地址没写端口就用它 |
+| `DISCOVERY_PORT` | `23001` | 本地发现端口（UDP，发现已被关闭，所以没有流量） |
+| `SYNCTHING_NAME` | `fb-amd64` / `fb-arm64` | 对方看到的设备名，每台机器不同（默认值取决于分支） |
+| `PUID` / `PGID` | `0` / `0` | 容器运行的用户；服务 root 拥有的文件需要 0 |
+| `FB_TAG` | `amd64` / `arm64` | 固定 File Browser 镜像版本，例如 `2.63.23-fork.2-amd64` |
+
+4. **数据**：`DATA_DIR` 挂到 `/srv`；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
+5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）；两个服务都写了 `platform`。
+6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
+7. **从旧版本升级**：旧的 `.env` 里没有 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明
 
@@ -250,6 +357,9 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - 上面的 compose 同时设置了 `FB_NOAUTH=true`：能连到这个端口的人不用登录就能读写被服务的整个目录。只走 Tailscale 时，风险取决于 tailnet 里有谁和 ACL 怎么设；不要用 Tailscale Funnel 把它暴露到公网。
 
 ### 数据与代码改动清单
+
+- **近期新增（后端）**：`activity/` + `storage/bolt/activity.go`、`http/{activity,trash,diskusage,archive,sync_extras}.go`，修改 `http/{resource,settings,auth,tus_handlers,http,static}.go` 和 `settings/settings.go`（回收站设置、`ActivityDays`）。
+- **近期新增（前端）**：`views/{Trash,DiskUsage,DualPane}.vue`、`views/settings/Activity.vue`、`components/prompts/{Compress,Extract,BatchRename,SyncIgnores}.vue`、`api/{trash,du,archive,activity}.ts`、`stores/sync.ts`、`utils/{batchRename,dualPane,archives,syncState}.ts`，`utils/drop.ts` 抽出了通用的 `transferItems`。
 
 - 后端新增：`syncthing/`（客户端）、`http/sync.go`、`http/permissions.go`（+ `permissions_unix.go` / `permissions_windows.go`）、`http/format.go`、`http/static_test.go`、`http/users_favorites_test.go`、`http/sync_test.go`、`http/permissions_test.go`、`http/format_test.go`、`users/favorites_test.go`；修改 `users/users.go`（`Favorites`、`FolderColors` 及校验）、`http/users.go`（校验失败返回 400）、`http/http.go`（注册 `/api/sync`）、`http/static.go`（向前端传 `EnableSync`）、`settings/settings.go` 和 `cmd/root.go`（运行时的 Syncthing 参数）。
 - 前端新增：`api/sync.ts`、`types/sync.d.ts`、`utils/{drop,favorites,folderColors,syncRate}.ts`、`api/{permissions,formatGo}.ts`、`utils/editor/{formatters,aceAssets,aceFiles}.ts`、`components/prompts/{FolderColor,SyncFolder,Permissions}.vue`、`components/settings/SyncDeviceForm.vue`、`views/settings/Sync.vue`；修改 `stores/auth.ts`、`Sidebar.vue`、`ListingItem.vue`、`FileListing.vue` 等。
@@ -266,7 +376,8 @@ pnpm run build                                            # 构建前端到 fron
 
 - **后端测试**：`users/favorites_test.go`（收藏夹和颜色的规范化与校验）、`http/users_favorites_test.go`（普通用户可以改、非法输入返回 400）、`http/sync_test.go`（用内存里的假 Syncthing 服务器，覆盖权限、路径校验、符号链接、重叠、设备管理、接受共享、状态和速度字段、错误映射）、`http/permissions_test.go`（模式、递归、拒绝 scope 根/符号链接/setuid、规则隐藏、改属主）、`http/format_test.go`、`http/static_test.go`。对符号链接防护做过变异测试：去掉防护后对应用例会失败。
 - **前端测试**：`utils/__tests__/favorites.test.ts`、`stores/__tests__/auth-favorites.test.ts`（含“令牌刷新后收藏夹仍在”的回归测试）、`utils/__tests__/sync-rate.test.ts`、`utils/__tests__/formatters.test.ts`（真实运行 Prettier、Ruff、sql-formatter，Go 的服务器调用用 mock）。
-- **端到端**：用 Docker 起两套真实的 Syncthing + File Browser，再用 Playwright 驱动浏览器，把配对、共享、接受、同步、暂停恢复、拖放到收藏夹、收藏夹和颜色在子目录跳转和刷新后是否保留、传输速度显示，以及编辑器（字体、各类型格式化、保存时格式化、资源是否全部来自应用自身）和权限弹窗（右键入口、改权限、改属主、递归）都走过一遍。这部分是手工脚本，没有放进仓库。
+- **近期功能的测试**：`http/trash_test.go`（移入和还原、配额淘汰、过期、过大直接删除、设置往返）、`http/activity_test.go`、`http/diskusage_test.go`（含竞态检测）、`http/archive_test.go`（6 种格式往返、恶意条目、限制）、`http/sync_extras_test.go`；前端 `utils/__tests__/{batch-rename,dual-pane,archives}.test.ts`。
+- **端到端**：用 Docker 起两套真实的 Syncthing + File Browser，再用 Playwright 驱动浏览器，把配对、共享、接受、同步、暂停恢复、拖放到收藏夹、收藏夹和颜色在子目录跳转和刷新后是否保留、传输速度显示，以及编辑器（字体、各类型格式化、保存时格式化、资源是否全部来自应用自身）和权限弹窗（右键入口、改权限、改属主、递归）都走过一遍。近期的功能（回收站和设置、活动页、磁盘占用、压缩解压、批量重命名、复制一份、双栏拖放，以及同步标记、冲突、忽略规则、限速）也都在真实浏览器里走过一遍，发现并修了其中的两个问题。这部分是手工脚本，没有放进仓库。
 - 测试时要注意：Syncthing 默认不对局域网地址限速，在 Docker 内网里测速度要同时设置 `limitBandwidthInLan: true`。
 
 ## Security

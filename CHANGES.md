@@ -10,6 +10,17 @@ in the image label `com.filebrowser.fork.changes`
 Add a section here before every release (`scripts/release.sh` refuses to run
 without one) and bump `VERSION`.
 
+## 2.63.23-fork.2 (2026-10-12)
+
+- Trash: deleting moves files to a recycle bin that can be restored; it can be switched off, and limited by total size (GB) and days, in Settings > Global Settings. Items larger than the whole limit are deleted for good; deleting can also skip the trash.
+- Activity log (Settings > Activity, admins): who created, uploaded, saved, deleted, renamed, moved, copied, shared, logged in, changed permissions, restored, compressed or synced what, when and from where; kept for --activityDays (default 90).
+- Sync additions: a status badge on synced folders in the file list, conflict resolution (keep either version, the other goes to the trash), editable ignore rules per folder and bandwidth limits.
+- Disk usage page: what each item in a folder takes, as bars, drilling down folder by folder.
+- Compress to zip or tar (gz, bz2, xz, zst) and extract zip, tar, 7z and rar, refusing path traversal, links and archive bombs.
+- Rename several items at once (find and replace with regex, prefix, suffix, case, numbering, live preview) and duplicate items.
+- Two panes view: two folders side by side with drag and drop (Ctrl/Cmd copies), F5/F6/F7 and keyboard selection.
+- docker-compose: the Tailscale address, all ports, the served folder, the Syncthing device name and the user now come from .env; Syncthing's web interface is published on SYNCTHING_GUI_PORT (default 38003); HOST_IP is required so nothing falls back to all interfaces.
+
 ## 2.63.23-fork.1 (2026-10-12)
 
 - Cut and Paste buttons in the header bar, next to Copy and Move.
