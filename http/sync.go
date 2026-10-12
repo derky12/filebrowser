@@ -136,7 +136,12 @@ func withSync(fn func(w http.ResponseWriter, r *http.Request, d *data, c *syncth
 }
 
 func syncErrToStatus(err error) (int, error) {
+	var apiErr *syncthing.APIError
 	switch {
+	case errors.As(err, &apiErr) && apiErr.Status == http.StatusBadRequest:
+		// Syncthing rejected the input (e.g. a device ID with a wrong check
+		// digit); its message is meant for the user.
+		return http.StatusBadRequest, syncBadRequest("%s", strings.Trim(apiErr.Body, `" `))
 	case errors.Is(err, errSyncBadRequest):
 		return http.StatusBadRequest, err
 	case errors.Is(err, syncthing.ErrUnavailable):

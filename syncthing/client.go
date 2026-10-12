@@ -19,6 +19,18 @@ import (
 // API key.
 var ErrUnavailable = errors.New("syncthing is unavailable")
 
+// APIError is an error response from the Syncthing API.
+type APIError struct {
+	Method string
+	Path   string
+	Status int
+	Body   string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("syncthing: %s %s: %d %s: %s", e.Method, e.Path, e.Status, http.StatusText(e.Status), e.Body)
+}
+
 // Folder types understood by Syncthing.
 const (
 	TypeSendOnly    = "sendonly"
@@ -156,7 +168,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 		return fmt.Errorf("%w: invalid API key", ErrUnavailable)
 	case resp.StatusCode >= 300:
-		return fmt.Errorf("syncthing: %s %s: %s: %s", method, path, resp.Status, strings.TrimSpace(string(data)))
+		return &APIError{Method: method, Path: path, Status: resp.StatusCode, Body: strings.TrimSpace(string(data))}
 	}
 
 	if out != nil && len(data) > 0 {

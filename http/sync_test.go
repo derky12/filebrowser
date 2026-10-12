@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	testSelfID   = "AAAAAAA-BBBBBBB-CCCCCCC-DDDDDDD-EEEEEEE-FFFFFFF-GGGGGGG-HHHHHHH"
-	testRemoteID = "2222222-3333333-4444444-5555555-6666666-7777777-AAAAAAA-BBBBBBB"
+	testSelfID          = "AAAAAAA-BBBBBBB-CCCCCCC-DDDDDDD-EEEEEEE-FFFFFFF-GGGGGGG-HHHHHHH"
+	testBadCheckDigitID = "ZZZZZZZ-ZZZZZZZ-ZZZZZZZ-ZZZZZZZ-ZZZZZZZ-ZZZZZZZ-ZZZZZZZ-ZZZZZZZ"
+	testRemoteID        = "2222222-3333333-4444444-5555555-6666666-7777777-AAAAAAA-BBBBBBB"
 )
 
 // fakeSyncthing is an in-memory stand-in for the Syncthing REST API.
@@ -72,6 +73,8 @@ func (f *fakeSyncthing) serve(w http.ResponseWriter, r *http.Request) {
 			list = append(list, d)
 		}
 		write(list)
+	case strings.HasPrefix(r.URL.Path, "/rest/config/devices/") && r.Method == http.MethodPut && id == testBadCheckDigitID:
+		http.Error(w, `"bad id": check digit incorrect`, http.StatusBadRequest)
 	case strings.HasPrefix(r.URL.Path, "/rest/config/devices/") && r.Method == http.MethodPut:
 		var d syncthing.Device
 		_ = json.Unmarshal(body, &d)
@@ -395,6 +398,13 @@ func TestSyncDevices(t *testing.T) {
 		if rec := add(body); rec.Code != http.StatusBadRequest {
 			t.Fatalf("%s: status=%d, want 400", name, rec.Code)
 		}
+	}
+
+	// Syncthing rejecting the ID (e.g. wrong check digit) is the user's mistake,
+	// reported as 400 with Syncthing's message.
+	rec := add(`{"deviceID":"` + testBadCheckDigitID + `","name":"typo"}`)
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "check digit incorrect") {
+		t.Fatalf("bad check digit: status=%d body=%q", rec.Code, rec.Body.String())
 	}
 
 	// An address without a port uses the configured sync port.
