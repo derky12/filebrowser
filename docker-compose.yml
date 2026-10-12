@@ -1,4 +1,5 @@
-# Private deployment. Open http://100.64.0.7:38002 (Tailscale address).
+# Private deployment (amd64 branch: main). Open http://100.64.0.7:38002 (Tailscale address).
+# Pre-built image: docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
 #   docker compose -f docker-compose.yml up -d --build
 # (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
 services:
@@ -6,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.multiarch
-    image: filebrowser-local:latest
+    image: q25459768/filebrowser:amd64
     container_name: filebrowser
     restart: unless-stopped
     environment:
