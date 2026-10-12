@@ -3,6 +3,7 @@ package fbhttp
 import (
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/spf13/afero"
@@ -30,6 +31,9 @@ func NewHandler(
 	server.CaseInsensitiveFs = files.CaseInsensitive(afero.NewOsFs(), server.Root)
 
 	startSyncthingSetup(server)
+	if store.Activity != nil {
+		store.Activity.Retention = time.Duration(server.ActivityDays) * 24 * time.Hour
+	}
 
 	r := mux.NewRouter()
 	r.Use(func(next http.Handler) http.Handler {
@@ -64,10 +68,10 @@ func NewHandler(
 
 	api.PathPrefix("/resources/recursive").Handler(monkey(resourceGetRecursiveHandler, "/api/resources/recursive")).Methods("GET")
 	api.PathPrefix("/resources").Handler(monkey(resourceGetHandler, "/api/resources")).Methods("GET")
-	api.PathPrefix("/resources").Handler(monkey(resourceDeleteHandler(fileCache), "/api/resources")).Methods("DELETE")
-	api.PathPrefix("/resources").Handler(monkey(resourcePostHandler(fileCache), "/api/resources")).Methods("POST")
-	api.PathPrefix("/resources").Handler(monkey(resourcePutHandler, "/api/resources")).Methods("PUT")
-	api.PathPrefix("/resources").Handler(monkey(resourcePatchHandler(fileCache), "/api/resources")).Methods("PATCH")
+	api.PathPrefix("/resources").Handler(monkey(audited(auditFixed("delete"), resourceDeleteHandler(fileCache)), "/api/resources")).Methods("DELETE")
+	api.PathPrefix("/resources").Handler(monkey(audited(auditPost, resourcePostHandler(fileCache)), "/api/resources")).Methods("POST")
+	api.PathPrefix("/resources").Handler(monkey(audited(auditFixed("save"), resourcePutHandler), "/api/resources")).Methods("PUT")
+	api.PathPrefix("/resources").Handler(monkey(audited(auditPatch, resourcePatchHandler(fileCache)), "/api/resources")).Methods("PATCH")
 
 	api.PathPrefix("/tus").Handler(monkey(tusPostHandler(uploadCache), "/api/tus")).Methods("POST")
 	api.PathPrefix("/tus").Handler(monkey(tusHeadHandler(uploadCache), "/api/tus")).Methods("HEAD", "GET")
@@ -83,8 +87,10 @@ func NewHandler(
 
 	api.Handle("/shares", monkey(shareListHandler, "")).Methods("GET")
 	api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
-	api.PathPrefix("/share").Handler(monkey(sharePostHandler, "/api/share")).Methods("POST")
+	api.PathPrefix("/share").Handler(monkey(audited(auditFixed("share"), sharePostHandler), "/api/share")).Methods("POST")
 	api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")
+
+	api.Handle("/activity", monkey(activityGetHandler, "")).Methods("GET")
 
 	sync := api.PathPrefix("/sync").Subrouter()
 	sync.Handle("", monkey(syncStatusHandler, "")).Methods("GET")

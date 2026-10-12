@@ -288,6 +288,7 @@ func tusPatchUpload(w http.ResponseWriter, r *http.Request, d *data, cache Uploa
 	if newOffset >= uploadLength {
 		cache.Complete(file.RealPath())
 		_ = d.RunHook(func() error { return nil }, "upload", r.URL.Path, "", d.user)
+		d.audit(r, "upload", r.URL.Path, "", filesizeLabel(uploadLength))
 	}
 
 	return http.StatusNoContent, nil

@@ -73,6 +73,10 @@ type Server struct {
 	// device address is entered without one.
 	SyncthingPort string `json:"-"`
 
+	// ActivityDays is how many days the activity log is kept; 0 turns it off.
+	// Runtime-only, like the Syncthing settings.
+	ActivityDays int `json:"-"`
+
 	// CaseInsensitiveFs is detected from Root at startup rather than
 	// configured, and tells the rule checker to match paths case-insensitively.
 	// It is never persisted.

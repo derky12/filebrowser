@@ -167,12 +167,19 @@ func loginHandler(tokenExpireTime time.Duration) handleFunc {
 		user, err := auther.Auth(r, d.store.Users, d.settings, d.server)
 		switch {
 		case errors.Is(err, os.ErrPermission):
+			d.auditAs(r, nil, "login_failed", "", "", "")
 			return http.StatusForbidden, nil
 		case err != nil:
 			return http.StatusInternalServerError, err
 		}
 
-		return printToken(w, r, d, user, tokenExpireTime)
+		status, err := printToken(w, r, d, user, tokenExpireTime)
+		// With no authentication every page load logs in; that is not news.
+		if err == nil && status == 0 && d.settings.AuthMethod != fbAuth.MethodNoAuth {
+			d.auditAs(r, user, "login", "", "", "")
+		}
+
+		return status, err
 	}
 }
 

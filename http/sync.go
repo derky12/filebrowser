@@ -473,6 +473,7 @@ var syncDevicePostHandler = withSync(func(_ http.ResponseWriter, r *http.Request
 	if err := c.PutDevice(r.Context(), syncthing.Device{DeviceID: id, Name: name, Addresses: addresses}); err != nil {
 		return syncErrToStatus(err)
 	}
+	d.audit(r, "sync_device_add", "", "", name)
 
 	return http.StatusNoContent, nil
 })
@@ -498,6 +499,7 @@ var syncDeviceDeleteHandler = withSync(func(_ http.ResponseWriter, r *http.Reque
 	if err := c.DeleteDevice(r.Context(), id); err != nil {
 		return syncErrToStatus(err)
 	}
+	d.audit(r, "sync_device_remove", "", "", id)
 
 	return http.StatusNoContent, nil
 })
@@ -571,6 +573,7 @@ var syncFolderPostHandler = withSync(func(w http.ResponseWriter, r *http.Request
 	if err := c.PutFolder(ctx, folder); err != nil {
 		return syncErrToStatus(err)
 	}
+	d.audit(r, "sync_share", virtual, "", req.Mode+" with "+strings.Join(req.DeviceIDs, ", "))
 
 	return renderJSON(w, r, map[string]string{"id": id})
 })
@@ -603,6 +606,11 @@ var syncFolderPatchHandler = withSync(func(_ http.ResponseWriter, r *http.Reques
 	if err := c.SetFolderPaused(r.Context(), mux.Vars(r)["id"], *req.Paused); err != nil {
 		return syncErrToStatus(err)
 	}
+	if *req.Paused {
+		d.audit(r, "sync_pause", "", "", mux.Vars(r)["id"])
+	} else {
+		d.audit(r, "sync_resume", "", "", mux.Vars(r)["id"])
+	}
 
 	return http.StatusNoContent, nil
 })
@@ -611,6 +619,7 @@ var syncFolderDeleteHandler = withSync(func(_ http.ResponseWriter, r *http.Reque
 	if err := c.DeleteFolder(r.Context(), mux.Vars(r)["id"]); err != nil {
 		return syncErrToStatus(err)
 	}
+	d.audit(r, "sync_stop", "", "", mux.Vars(r)["id"])
 
 	return http.StatusNoContent, nil
 })
@@ -716,6 +725,7 @@ var syncPendingAcceptHandler = withSync(func(_ http.ResponseWriter, r *http.Requ
 	if err := c.PutFolder(ctx, folder); err != nil {
 		return syncErrToStatus(err)
 	}
+	d.audit(r, "sync_accept", virtual, "", req.Mode+" from "+req.DeviceID)
 
 	return http.StatusNoContent, nil
 })

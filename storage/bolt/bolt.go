@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"github.com/asdine/storm/v3"
+	"github.com/filebrowser/filebrowser/v2/activity"
 
 	"github.com/filebrowser/filebrowser/v2/auth"
 	"github.com/filebrowser/filebrowser/v2/settings"
@@ -16,6 +17,7 @@ func NewStorage(db *storm.DB) (*storage.Storage, error) {
 	shareStore := share.NewStorage(shareBackend{db: db})
 	settingsStore := settings.NewStorage(settingsBackend{db: db})
 	authStore := auth.NewStorage(authBackend{db: db}, userStore)
+	activityStore := activity.NewStorage(activityBackend{db: db})
 
 	err := save(db, "version", 2)
 	if err != nil {
@@ -27,5 +29,6 @@ func NewStorage(db *storm.DB) (*storage.Storage, error) {
 		Users:    userStore,
 		Share:    shareStore,
 		Settings: settingsStore,
+		Activity: activityStore,
 	}, nil
 }

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/filebrowser/filebrowser/v2/activity"
 	"github.com/filebrowser/filebrowser/v2/auth"
 	"github.com/filebrowser/filebrowser/v2/settings"
 	"github.com/filebrowser/filebrowser/v2/share"
@@ -14,4 +15,5 @@ type Storage struct {
 	Share    *share.Storage
 	Auth     *auth.Storage
 	Settings *settings.Storage
+	Activity *activity.Storage
 }

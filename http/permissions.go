@@ -333,6 +333,21 @@ var permissionsPatchHandler = withUser(func(w http.ResponseWriter, r *http.Reque
 		result.Changed++
 	}
 
+	var what []string
+	if req.Mode != "" {
+		what = append(what, "mode "+req.Mode)
+	}
+	if req.Recursive {
+		what = append(what, fmt.Sprintf("recursive (files %s, folders %s)", req.FileMode, req.DirMode))
+	}
+	if req.Owner != nil && *req.Owner != "" {
+		what = append(what, "owner "+*req.Owner)
+	}
+	if req.Group != nil && *req.Group != "" {
+		what = append(what, "group "+*req.Group)
+	}
+	d.audit(r, "permissions", p, "", fmt.Sprintf("%s: %d changed, %d skipped, %d failed", strings.Join(what, ", "), result.Changed, result.Skipped, result.Failed))
+
 	log.Printf("permissions: user %q changed %s mode=%q fileMode=%q dirMode=%q owner=%v group=%v recursive=%v: %d changed, %d skipped, %d failed",
 		d.user.Username, p, req.Mode, req.FileMode, req.DirMode, derefString(req.Owner), derefString(req.Group), req.Recursive, result.Changed, result.Skipped, result.Failed)
 
