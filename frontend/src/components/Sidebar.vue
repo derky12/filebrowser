@@ -17,6 +17,16 @@
       </button>
 
       <button
+        class="action"
+        @click="toDualPane"
+        :aria-label="$t('dual.title')"
+        :title="$t('dual.title')"
+      >
+        <i class="material-icons">vertical_split</i>
+        <span>{{ $t("dual.title") }}</span>
+      </button>
+
+      <button
         v-if="enableTrash && user.perm.delete"
         class="action"
         @click="toTrash"
@@ -274,6 +284,10 @@ export default {
 
       event.preventDefault();
       await dropSelectedInto(favoriteToUrl(favorite), event, this.$showError);
+    },
+    toDualPane() {
+      this.$router.push({ path: "/dual" });
+      this.closeHovers();
     },
     toTrash() {
       this.$router.push({ path: "/trash" });

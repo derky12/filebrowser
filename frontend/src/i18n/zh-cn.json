@@ -339,6 +339,26 @@
       "regex": "正则表达式无效"
     }
   },
+  "dual": {
+    "title": "双栏",
+    "help": "点一个栏就在这个栏里操作。把项目拖到另一栏即移动（按住 Ctrl 或 Cmd 为复制）。快捷键：Tab 切换栏，F5 复制，F6 移动，F7 新建文件夹，Delete 删除，Backspace 上一级，Enter 打开。",
+    "copyOver": "复制到另一栏（F5）",
+    "moveOver": "移动到另一栏（F6）",
+    "newFolder": "新建文件夹（F7）",
+    "swap": "交换两栏",
+    "refresh": "刷新",
+    "up": "上一级",
+    "path": "路径",
+    "selected": "已选 {n} 项",
+    "name": "名称",
+    "size": "大小",
+    "modified": "修改时间",
+    "empty": "这个文件夹是空的。",
+    "nothingSelected": "请先选择项目。",
+    "folderName": "新文件夹的名称",
+    "confirmDelete": "删除 {n} 个项目？",
+    "deleted": "已删除 {n} 个项目"
+  },
   "perms": {
     "title": "权限",
     "nItems": "{n} 个项目",

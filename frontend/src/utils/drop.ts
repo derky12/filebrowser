@@ -3,42 +3,42 @@ import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 import * as upload from "@/utils/upload";
 
-// Moves (or copies, when Ctrl/Cmd is held) the currently selected listing
-// items into the folder at `targetUrl` (a listing url with trailing slash).
-export async function dropSelectedInto(
+export interface TransferSource {
+  from: string; // the (encoded) url of the item
+  name: string;
+  size: number;
+  isDir: boolean;
+  modified: string;
+}
+
+// Moves (or copies) items into the folder at `targetUrl` (a listing url with a
+// trailing slash), asking what to do about names that already exist there.
+// `onDone` runs after the transfer went through.
+export async function transferItems(
+  sources: TransferSource[],
   targetUrl: string,
-  event: Event,
-  showError: IToastError
+  copy: boolean,
+  showError: IToastError,
+  onDone: () => void = () => {}
 ): Promise<void> {
-  const fileStore = useFileStore();
   const layoutStore = useLayoutStore();
 
-  if (fileStore.selectedCount === 0 || !fileStore.req) return;
+  if (sources.length === 0) return;
 
-  const items: any[] = [];
-
-  for (const i of fileStore.selected) {
-    const item = fileStore.req.items[i];
-    items.push({
-      from: item.url,
-      to: targetUrl + encodeURIComponent(item.name),
-      name: item.name,
-      size: item.size,
-      isDir: item.isDir,
-      modified: item.modified,
-      overwrite: false,
-      rename: false,
-    });
-  }
-
-  const copy =
-    (event as KeyboardEvent).ctrlKey || (event as KeyboardEvent).metaKey;
+  const items: any[] = sources.map((source) => ({
+    from: source.from,
+    to: targetUrl + encodeURIComponent(source.name),
+    name: source.name,
+    size: source.size,
+    isDir: source.isDir,
+    modified: source.modified,
+    overwrite: false,
+    rename: false,
+  }));
 
   const action = (overwrite?: boolean, rename?: boolean) => {
     (copy ? api.copy : api.move)(items, overwrite, rename)
-      .then(() => {
-        fileStore.reload = true;
-      })
+      .then(onDone)
       .catch(showError);
   };
 
@@ -73,4 +73,34 @@ export async function dropSelectedInto(
   }
 
   action(false, false);
+}
+
+// Moves (or copies, when Ctrl/Cmd is held) the items selected in the file list
+// into the folder at `targetUrl`.
+export async function dropSelectedInto(
+  targetUrl: string,
+  event: Event,
+  showError: IToastError
+): Promise<void> {
+  const fileStore = useFileStore();
+
+  if (fileStore.selectedCount === 0 || !fileStore.req) return;
+
+  const sources: TransferSource[] = fileStore.selected.map((i) => {
+    const item = fileStore.req!.items[i];
+    return {
+      from: item.url,
+      name: item.name,
+      size: item.size,
+      isDir: item.isDir,
+      modified: item.modified,
+    };
+  });
+
+  const copy =
+    (event as KeyboardEvent).ctrlKey || (event as KeyboardEvent).metaKey;
+
+  await transferItems(sources, targetUrl, copy, showError, () => {
+    fileStore.reload = true;
+  });
 }

@@ -37,6 +37,11 @@
             @action="openPermissions"
           />
           <action
+            icon="vertical_split"
+            :label="t('dual.title')"
+            @action="openDualPane"
+          />
+          <action
             v-if="headerButtons.diskUsage"
             icon="donut_large"
             :label="t('du.title')"
@@ -918,6 +923,15 @@ const openExtract = (): void => {
       },
     },
   });
+};
+
+const openDualPane = (): void => {
+  const selected =
+    fileStore.selectedCount === 1
+      ? fileStore.req?.items[fileStore.selected[0]]
+      : undefined;
+  const path = urlToFavorite(selected?.isDir ? selected.url : route.path);
+  router.push({ path: "/dual", query: { left: path } });
 };
 
 const openDiskUsage = (): void => {

@@ -339,6 +339,26 @@
       "regex": "Invalid regular expression"
     }
   },
+  "dual": {
+    "title": "Two panes",
+    "help": "Click a pane to work in it. Drag items to the other pane to move them (hold Ctrl or Cmd to copy). Keys: Tab switch pane, F5 copy, F6 move, F7 new folder, Delete, Backspace up, Enter open.",
+    "copyOver": "Copy to the other pane (F5)",
+    "moveOver": "Move to the other pane (F6)",
+    "newFolder": "New folder (F7)",
+    "swap": "Swap the panes",
+    "refresh": "Refresh",
+    "up": "Up one folder",
+    "path": "Path",
+    "selected": "{n} selected",
+    "name": "Name",
+    "size": "Size",
+    "modified": "Modified",
+    "empty": "This folder is empty.",
+    "nothingSelected": "Select something first.",
+    "folderName": "Name of the new folder",
+    "confirmDelete": "Delete {n} items?",
+    "deleted": "Deleted {n} items"
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",
