@@ -83,6 +83,7 @@ func NewHandler(
 	api.PathPrefix("/permissions").Handler(monkey(permissionsGetHandler, "/api/permissions")).Methods("GET")
 	api.PathPrefix("/permissions").Handler(monkey(permissionsPatchHandler, "/api/permissions")).Methods("PATCH")
 
+	api.Handle("/archive", monkey(archivePostHandler, "")).Methods("POST")
 	api.PathPrefix("/du").Handler(monkey(diskUsageHandler, "/api/du")).Methods("GET")
 	api.PathPrefix("/usage").Handler(monkey(diskUsage, "/api/usage")).Methods("GET")
 
