@@ -1,15 +1,48 @@
+# Private deployment (amd64 branch: main). Open http://100.64.0.7:38002 (Tailscale address).
+#
+# First time: create the Syncthing API key shared by the two containers.
+#   echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env
+# Then:
+#   docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
+# (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
+# See SYNC.md for how folder syncing works.
 services:
   filebrowser:
     image: q25459768/filebrowser:amd64
     container_name: filebrowser
     restart: unless-stopped
+    depends_on:
+      - syncthing
     environment:
       - PUID=0
       - PGID=0
       - FB_NOAUTH=true
+      - FB_SYNCTHING_URL=http://syncthing:8384
+      - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
+      - FB_SYNCTHING_PRIVATE_NETWORK=true
     ports:
       - "100.64.0.7:38002:80" #修改成实际地址
     volumes:
       - /root:/srv
       - ./config:/config
       - ./database:/database
+
+  # Does the actual syncing. Its web UI is not published: File Browser is the
+  # UI. Only the sync port is exposed, on the Tailscale address.
+  syncthing:
+    image: syncthing/syncthing:2
+    container_name: filebrowser-syncthing
+    hostname: fb-amd64 #对方看到的设备名，两台机器要不同
+    restart: unless-stopped
+    environment:
+      - PUID=0
+      - PGID=0
+      - STGUIADDRESS=0.0.0.0:8384
+      - STGUIAPIKEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
+      - STNODEFAULTFOLDER=1
+    ports:
+      - "100.64.0.7:22000:22000/tcp" #修改成实际地址
+      - "100.64.0.7:22000:22000/udp" #修改成实际地址
+    volumes:
+      - /root:/srv # must be the same mount as File Browser
+      - ./syncthing-config:/var/syncthing/config

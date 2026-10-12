@@ -42,3 +42,5 @@ Dockerfile.dev
 /srv/
 /config/
 /database/
+/.env
+/syncthing-config/
