@@ -143,7 +143,7 @@
     "deviceId": "Device ID",
     "deviceName": "Name",
     "deviceAddress": "Address",
-    "deviceAddressHelp": "Optional. Host or host:port of the other device, e.g. its Tailscale IP. Port defaults to 22000.",
+    "deviceAddressHelp": "Optional. Host or host:port of the other device, e.g. its Tailscale IP. Port defaults to {port}.",
     "addDevice": "Add device",
     "addNewDevice": "Add a new device",
     "noDevicesYet": "No devices yet. Add the device you want to sync with first.",

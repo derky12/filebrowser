@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -94,6 +95,7 @@ func init() {
 	flags.Int("imageProcessors", 4, "image processors count")
 	flags.String("syncthingUrl", "", "base URL of a Syncthing instance to enable folder syncing (e.g. http://syncthing:8384)")
 	flags.String("syncthingApiKey", "", "API key of the Syncthing instance")
+	flags.String("syncthingPort", "22000", "sync port of the other Syncthing devices, used when a device address has no port")
 	flags.Bool("syncthingPrivateNetwork", false, "turn off Syncthing discovery, relays and NAT traversal (for VPN-only setups)")
 	addServerFlags(flags)
 }
@@ -370,6 +372,10 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 	server.SyncthingURL = v.GetString("syncthingUrl")
 	server.SyncthingAPIKey = v.GetString("syncthingApiKey")
 	server.SyncthingPrivate = v.GetBool("syncthingPrivateNetwork")
+	server.SyncthingPort = v.GetString("syncthingPort")
+	if port, err := strconv.Atoi(server.SyncthingPort); err != nil || port < 1 || port > 65535 {
+		return nil, fmt.Errorf("--syncthingPort must be a port number, got %q", server.SyncthingPort)
+	}
 	if server.SyncthingURL != "" && server.SyncthingAPIKey == "" {
 		return nil, errors.New("--syncthingApiKey is required with --syncthingUrl")
 	}

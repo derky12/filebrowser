@@ -46,6 +46,7 @@
                     address: hostOf(p.address),
                   }"
                   lockId
+                  :defaultPort="status.defaultPort"
                   :submitLabel="t('sync.accept')"
                   @added="
                     acceptingDevice = null;
@@ -222,7 +223,10 @@
           </div>
           <div class="card-content">
             <h3>{{ t("sync.addDevice") }}</h3>
-            <sync-device-form @added="refresh" />
+            <sync-device-form
+              :defaultPort="status.defaultPort"
+              @added="refresh"
+            />
           </div>
         </div>
       </div>

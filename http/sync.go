@@ -30,7 +30,16 @@ const (
 	syncModeReceive = "receive" // this side only receives
 )
 
-const syncDefaultPort = "22000"
+const syncFallbackPort = "22000"
+
+// syncDefaultPort is the port assumed for device addresses entered without one.
+func syncDefaultPort(server *settings.Server) string {
+	if server.SyncthingPort == "" {
+		return syncFallbackPort
+	}
+
+	return server.SyncthingPort
+}
 
 var (
 	syncDeviceIDPattern = regexp.MustCompile(`^[A-Z2-7]{7}(-[A-Z2-7]{7}){7}$`)
@@ -84,6 +93,7 @@ type syncPendingFolderInfo struct {
 
 type syncStatus struct {
 	DeviceID       string                  `json:"deviceID"`
+	DefaultPort    string                  `json:"defaultPort"`
 	Devices        []syncDeviceInfo        `json:"devices"`
 	Folders        []syncFolderInfo        `json:"folders"`
 	PendingDevices []syncPendingDeviceInfo `json:"pendingDevices"`
@@ -291,6 +301,7 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 
 	out := syncStatus{
 		DeviceID:       myID,
+		DefaultPort:    syncDefaultPort(d.server),
 		Devices:        []syncDeviceInfo{},
 		Folders:        []syncFolderInfo{},
 		PendingDevices: []syncPendingDeviceInfo{},
@@ -427,7 +438,7 @@ var syncDevicePostHandler = withSync(func(_ http.ResponseWriter, r *http.Request
 			return syncErrToStatus(syncBadRequest("invalid address, use host or host:port"))
 		}
 		if !strings.Contains(address, ":") {
-			address += ":" + syncDefaultPort
+			address += ":" + syncDefaultPort(d.server)
 		}
 		addresses = []string{"tcp://" + address}
 	}

@@ -69,6 +69,9 @@ type Server struct {
 	SyncthingURL     string `json:"-"`
 	SyncthingAPIKey  string `json:"-"`
 	SyncthingPrivate bool   `json:"-"`
+	// SyncthingPort is the sync port other devices listen on, used when a
+	// device address is entered without one.
+	SyncthingPort string `json:"-"`
 
 	// CaseInsensitiveFs is detected from Root at startup rather than
 	// configured, and tells the rule checker to match paths case-insensitively.

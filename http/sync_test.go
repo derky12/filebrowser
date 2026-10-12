@@ -293,6 +293,9 @@ func TestSyncStatusMapsPathsAndPending(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if got.DefaultPort != "22000" {
+		t.Fatalf("defaultPort=%q, want 22000", got.DefaultPort)
+	}
 	if got.DeviceID != testSelfID || len(got.Devices) != 1 || got.Devices[0].Name != "remote" || !got.Devices[0].Connected {
 		t.Fatalf("devices: %+v", got)
 	}
@@ -393,6 +396,23 @@ func TestSyncDevices(t *testing.T) {
 			t.Fatalf("%s: status=%d, want 400", name, rec.Code)
 		}
 	}
+
+	// An address without a port uses the configured sync port.
+	e.server.SyncthingPort = "23000"
+	if rec := add(`{"deviceID":"` + testRemoteID + `","name":"laptop","address":"100.64.0.30"}`); rec.Code != http.StatusNoContent {
+		t.Fatalf("add with custom default port: status=%d", rec.Code)
+	}
+	if d := e.fake.devices[testRemoteID]; d.Addresses[0] != "tcp://100.64.0.30:23000" {
+		t.Fatalf("expected the configured default port, got %+v", d.Addresses)
+	}
+	// An explicit port always wins.
+	if rec := add(`{"deviceID":"` + testRemoteID + `","name":"laptop","address":"100.64.0.30:24000"}`); rec.Code != http.StatusNoContent {
+		t.Fatalf("add with explicit port: status=%d", rec.Code)
+	}
+	if d := e.fake.devices[testRemoteID]; d.Addresses[0] != "tcp://100.64.0.30:24000" {
+		t.Fatalf("expected the explicit port, got %+v", d.Addresses)
+	}
+	e.server.SyncthingPort = ""
 
 	// A device used by a folder cannot be removed.
 	e.fake.folders["f"] = syncthing.Folder{ID: "f", Label: "docs", Devices: []syncthing.DeviceRef{{DeviceID: testRemoteID}}}

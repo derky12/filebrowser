@@ -143,7 +143,7 @@
     "deviceId": "设备 ID",
     "deviceName": "名称",
     "deviceAddress": "地址",
-    "deviceAddressHelp": "可选。对方的主机或 主机:端口，例如它的 Tailscale IP。端口默认 22000。",
+    "deviceAddressHelp": "可选。对方的主机或 主机:端口，例如它的 Tailscale IP。端口默认 {port}。",
     "addDevice": "添加设备",
     "addNewDevice": "添加新设备",
     "noDevicesYet": "还没有设备。请先添加要同步的对方设备。",

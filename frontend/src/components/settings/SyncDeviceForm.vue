@@ -31,7 +31,9 @@
         placeholder="100.64.0.30"
         spellcheck="false"
       />
-      <small>{{ t("sync.deviceAddressHelp") }}</small>
+      <small>{{
+        t("sync.deviceAddressHelp", { port: defaultPort ?? "22000" })
+      }}</small>
     </label>
     <button class="button" type="submit" :disabled="busy">
       {{ submitLabel ?? t("sync.addDevice") }}
@@ -47,6 +49,7 @@ import { sync as api } from "@/api";
 const props = defineProps<{
   initial?: { deviceID?: string; name?: string; address?: string };
   lockId?: boolean;
+  defaultPort?: string;
   submitLabel?: string;
 }>();
 

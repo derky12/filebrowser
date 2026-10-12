@@ -48,7 +48,7 @@
             {{ t("sync.thisDeviceId") }}
             <code>{{ deviceID }}</code>
           </p>
-          <sync-device-form @added="deviceAdded" />
+          <sync-device-form :defaultPort="defaultPort" @added="deviceAdded" />
           <p v-if="devices.length > 0">
             <a class="sync-link" @click="addingDevice = false">{{
               t("buttons.cancel")
@@ -97,6 +97,7 @@ const path = computed<string>(() => layoutStore.currentPrompt?.props?.path);
 const loading = ref(true);
 const devices = ref<SyncDevice[]>([]);
 const deviceID = ref("");
+const defaultPort = ref("22000");
 const addingDevice = ref(false);
 const selected = ref<string[]>([]);
 const mode = ref<"oneway" | "twoway">("oneway");
@@ -112,6 +113,7 @@ const load = async () => {
     const status = await api.status();
     devices.value = status.devices;
     deviceID.value = status.deviceID;
+    defaultPort.value = status.defaultPort;
     addingDevice.value = status.devices.length === 0;
   } catch (e) {
     $showError(e as Error);

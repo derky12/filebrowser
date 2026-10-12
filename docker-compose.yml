@@ -2,6 +2,7 @@
 #
 # First time: create the Syncthing API key shared by the two containers.
 #   echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env
+# Optional in .env: SYNC_PORT (default 23000) and DISCOVERY_PORT (default 23001).
 # Then:
 #   docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
 # (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
@@ -20,6 +21,8 @@ services:
       - FB_SYNCTHING_URL=http://syncthing:8384
       - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
       - FB_SYNCTHING_PRIVATE_NETWORK=true
+      # Port assumed for device addresses entered without one; keep it equal to SYNC_PORT.
+      - FB_SYNCTHING_PORT=${SYNC_PORT:-23000}
     ports:
       - "100.64.0.7:38002:80" #修改成实际地址
     volumes:
@@ -41,8 +44,11 @@ services:
       - STGUIAPIKEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
       - STNODEFAULTFOLDER=1
     ports:
-      - "100.64.0.7:22000:22000/tcp" #修改成实际地址
-      - "100.64.0.7:22000:22000/udp" #修改成实际地址
+      # host port : container port. Change the host ports with SYNC_PORT and
+      # DISCOVERY_PORT in .env (defaults 23000 / 23001); never the container ports.
+      - "100.64.0.7:${SYNC_PORT:-23000}:22000/tcp" #修改成实际地址
+      - "100.64.0.7:${SYNC_PORT:-23000}:22000/udp" #修改成实际地址
+      - "100.64.0.7:${DISCOVERY_PORT:-23001}:21027/udp" #修改成实际地址
     volumes:
       - /root:/srv # must be the same mount as File Browser
       - ./syncthing-config:/var/syncthing/config

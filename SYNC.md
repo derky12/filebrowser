@@ -9,10 +9,25 @@ next to File Browser; File Browser is the interface (admin only).
 1. Create `.env` with a random key shared by the two containers:
    `echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env`
 2. `docker compose -f docker-compose.yml up -d`.
-   The compose file starts Syncthing, publishes its sync port (22000) on the
-   Tailscale address only, and sets `FB_SYNCTHING_*` for File Browser.
+   The compose file starts Syncthing, publishes its sync port on the Tailscale
+   address only, and sets `FB_SYNCTHING_*` for File Browser.
 3. Open **Settings → Sync**. The **Sync** tab only exists when
    `FB_SYNCTHING_URL` is set.
+
+## Ports
+
+Syncthing is reachable on the Tailscale address at two host ports, set in
+`.env` (the values below are the defaults):
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `SYNC_PORT` | `23000` | TCP + UDP (QUIC) port other devices connect to |
+| `DISCOVERY_PORT` | `23001` | UDP local-discovery port (idle: discovery is turned off) |
+
+Use the same `SYNC_PORT` on every machine: it is the port assumed when you add a
+device by address without a port (`FB_SYNCTHING_PORT`). Only the host side is
+configurable; the container keeps using 22000 and 21027. Restart with
+`docker compose -f docker-compose.yml up -d` after changing `.env`.
 
 File Browser and Syncthing must see the files at the same path (both mount the
 files at `/srv`), because Syncthing is given the real path of the folder.
