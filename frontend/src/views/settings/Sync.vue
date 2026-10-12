@@ -83,12 +83,7 @@
               <template v-if="acceptingFolder === p.id + p.deviceID">
                 <label class="field">
                   <span>{{ t("sync.localPath") }}</span>
-                  <input
-                    class="input input--block"
-                    type="text"
-                    v-model.trim="acceptPath"
-                    spellcheck="false"
-                  />
+                  <path-input v-model="acceptPath" />
                   <small>{{ t("sync.localPathHelp") }}</small>
                 </label>
                 <label class="field">
@@ -372,6 +367,7 @@ import { useLayoutStore } from "@/stores/layout";
 import type { TransferRate, TransferSample } from "@/utils/syncRate";
 import Errors from "@/views/Errors.vue";
 import SyncDeviceForm from "@/components/settings/SyncDeviceForm.vue";
+import PathInput from "@/components/PathInput.vue";
 
 const $showError = inject<IToastError>("$showError")!;
 const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
@@ -589,7 +585,7 @@ const acceptFolder = async (p: SyncPendingFolder) => {
       api.acceptFolder({
         folderID: p.id,
         deviceID: p.deviceID,
-        path: acceptPath.value,
+        path: acceptPath.value.trim(),
         mode: acceptMode.value,
       }),
     t("sync.accepted")

@@ -8,14 +8,7 @@
       <p class="arch-note">{{ archive?.path }}</p>
       <label class="arch-field">
         <span>{{ t("archive.intoFolder") }}</span>
-        <input
-          id="focus-prompt"
-          class="input input--block"
-          type="text"
-          v-model.trim="destination"
-          spellcheck="false"
-          @keyup.enter="submit"
-        />
+        <path-input v-model="destination" input-id="focus-prompt" />
         <small>{{ t("archive.intoHelp") }}</small>
       </label>
       <label class="arch-check">
@@ -35,7 +28,7 @@
       </button>
       <button
         class="button button--flat"
-        :disabled="busy || destination === ''"
+        :disabled="busy || destination.trim() === ''"
         @click="submit"
         :aria-label="t('archive.extract')"
         :title="t('archive.extract')"
@@ -51,6 +44,7 @@ import { computed, inject, onActivated, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { archive as api } from "@/api";
 import { archiveBaseName } from "@/utils/archives";
+import PathInput from "@/components/PathInput.vue";
 import { useFileStore } from "@/stores/file";
 import { useLayoutStore } from "@/stores/layout";
 
@@ -79,15 +73,14 @@ onActivated(() => {
 });
 
 const submit = async () => {
-  if (busy.value || !archive.value || destination.value === "") return;
+  const target = destination.value.trim();
+  if (busy.value || !archive.value || target === "") return;
 
   busy.value = true;
   try {
     const result = await api.extract(
       archive.value.path,
-      destination.value.startsWith("/")
-        ? destination.value
-        : `/${destination.value}`,
+      target.startsWith("/") ? target : `/${target}`,
       overwrite.value
     );
     $showSuccess(
