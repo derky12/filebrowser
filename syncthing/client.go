@@ -293,3 +293,40 @@ func (c *Client) UsePrivateNetwork(ctx context.Context) error {
 		"urAccepted":            -1,
 	}, nil)
 }
+
+// Ignores returns the ignore patterns of a folder (its .stignore).
+func (c *Client) Ignores(ctx context.Context, folder string) ([]string, error) {
+	var out struct {
+		Ignore []string `json:"ignore"`
+	}
+	err := c.do(ctx, http.MethodGet, "/rest/db/ignores", url.Values{"folder": {folder}}, nil, &out)
+	if out.Ignore == nil {
+		out.Ignore = []string{}
+	}
+
+	return out.Ignore, err
+}
+
+// SetIgnores replaces the ignore patterns of a folder.
+func (c *Client) SetIgnores(ctx context.Context, folder string, lines []string) error {
+	return c.do(ctx, http.MethodPost, "/rest/db/ignores", url.Values{"folder": {folder}}, map[string][]string{"ignore": lines}, nil)
+}
+
+// Limits are the bandwidth limits of the instance, in KiB/s; 0 is unlimited.
+type Limits struct {
+	MaxRecvKbps         int  `json:"maxRecvKbps"`
+	MaxSendKbps         int  `json:"maxSendKbps"`
+	LimitBandwidthInLan bool `json:"limitBandwidthInLan"`
+}
+
+// Limits returns the current bandwidth limits.
+func (c *Client) Limits(ctx context.Context) (Limits, error) {
+	var limits Limits
+	err := c.do(ctx, http.MethodGet, "/rest/config/options", nil, nil, &limits)
+	return limits, err
+}
+
+// SetLimits changes the bandwidth limits.
+func (c *Client) SetLimits(ctx context.Context, limits Limits) error {
+	return c.do(ctx, http.MethodPatch, "/rest/config/options", nil, limits, nil)
+}

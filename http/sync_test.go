@@ -33,6 +33,8 @@ type fakeSyncthing struct {
 	pendingDevices map[string]syncthing.PendingDevice
 	pendingFolders map[string]syncthing.PendingFolder
 	dismissed      []string
+	ignores        map[string][]string
+	limits         syncthing.Limits
 	srv            *httptest.Server
 }
 
@@ -43,6 +45,7 @@ func newFakeSyncthing(t *testing.T) *fakeSyncthing {
 		folders:        map[string]syncthing.Folder{},
 		pendingDevices: map[string]syncthing.PendingDevice{},
 		pendingFolders: map[string]syncthing.PendingFolder{},
+		ignores:        map[string][]string{},
 	}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.srv.Close)
@@ -99,6 +102,16 @@ func (f *fakeSyncthing) serve(w http.ResponseWriter, r *http.Request) {
 		f.folders[id] = fo
 	case strings.HasPrefix(r.URL.Path, "/rest/config/folders/") && r.Method == http.MethodDelete:
 		delete(f.folders, id)
+	case r.URL.Path == "/rest/db/ignores" && r.Method == http.MethodGet:
+		write(map[string][]string{"ignore": f.ignores[r.URL.Query().Get("folder")]})
+	case r.URL.Path == "/rest/db/ignores" && r.Method == http.MethodPost:
+		var in struct{ Ignore []string }
+		_ = json.Unmarshal(body, &in)
+		f.ignores[r.URL.Query().Get("folder")] = in.Ignore
+	case r.URL.Path == "/rest/config/options" && r.Method == http.MethodGet:
+		write(f.limits)
+	case r.URL.Path == "/rest/config/options" && r.Method == http.MethodPatch:
+		_ = json.Unmarshal(body, &f.limits)
 	case r.URL.Path == "/rest/db/status":
 		write(syncthing.FolderStatus{State: "syncing", GlobalBytes: 10, InSyncBytes: 4, NeedBytes: 6, NeedFiles: 2})
 	case r.URL.Path == "/rest/db/completion":
