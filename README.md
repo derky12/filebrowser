@@ -349,7 +349,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 4. **数据**：`DATA_DIR` 挂到 `/srv`；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
 5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）；两个服务都写了 `platform`。
 6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
-7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。
+7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。`hostname must be a string`（或别的变量“必须是字符串”）说明某个变量解析成了空值：`.env` 没有被读到（它必须和 `docker-compose.yml` 在同一个目录，文件名就是 `.env`，或者用 `--env-file` 指定），或者当前 shell 里导出了同名的空变量（shell 优先于 `.env`，用 `unset` 清掉）。用 `docker compose -f docker-compose.yml config --environment | grep -E "ARCH|HOST_IP|SYNCTHING"` 可以看到 compose 实际读到的值。仓库里的 compose 对必填变量写了 `:?` 检查，缺失时会直接说明；手写、省略这些检查的版本只会得到这种难懂的报错。引号、等号两边的空格、Windows 换行不会造成问题。
 8. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明
