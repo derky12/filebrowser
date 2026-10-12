@@ -37,3 +37,8 @@ build/
 
 default.nix
 Dockerfile.dev
+
+# Local data of docker-compose.yml
+/srv/
+/config/
+/database/

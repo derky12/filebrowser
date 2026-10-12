@@ -1,0 +1,20 @@
+# Private deployment. Open http://100.64.0.7:38002 (Tailscale address).
+#   docker compose -f docker-compose.yml up -d --build
+# (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
+services:
+  filebrowser:
+    build:
+      context: .
+      dockerfile: Dockerfile.multiarch
+    image: filebrowser-local:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    environment:
+      PUID: 1000
+      PGID: 1000
+    ports:
+      - "100.64.0.7:38002:80"
+    volumes:
+      - ./srv:/srv
+      - ./config:/config
+      - ./database:/database
