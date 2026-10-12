@@ -289,6 +289,20 @@
     "partial": "有些文件夹太大，没能在限定时间内算完；它们的实际大小不小于显示的数值。",
     "empty": "这个文件夹是空的。"
   },
+  "archive": {
+    "compress": "压缩",
+    "extract": "解压",
+    "compressing": "{n} 个项目会被打包成当前文件夹里的一个压缩包。",
+    "name": "压缩包名称",
+    "format": "格式",
+    "working": "处理中…",
+    "compressed": "已创建 {path}（{n} 个文件）",
+    "intoFolder": "解压到这个文件夹",
+    "intoHelp": "不存在会自动创建。已有的文件不会被覆盖，除非你勾选替换。",
+    "overwrite": "替换已存在的文件",
+    "extracted": "已解压 {n} 个文件到 {path}",
+    "extractedSkipped": "已解压 {n} 个文件，跳过 {skipped} 个（已存在的文件、链接或不安全的名称）"
+  },
   "perms": {
     "title": "权限",
     "nItems": "{n} 个项目",

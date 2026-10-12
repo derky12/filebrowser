@@ -289,6 +289,20 @@
     "partial": "Some folders are too big to measure in time; their sizes are at least what is shown.",
     "empty": "This folder is empty."
   },
+  "archive": {
+    "compress": "Compress",
+    "extract": "Extract",
+    "compressing": "{n} items will be packed into one archive in this folder.",
+    "name": "Archive name",
+    "format": "Format",
+    "working": "Working…",
+    "compressed": "Created {path} ({n} files)",
+    "intoFolder": "Extract into this folder",
+    "intoHelp": "Created when it does not exist. Existing files are kept unless you choose to replace them.",
+    "overwrite": "Replace files that already exist",
+    "extracted": "Extracted {n} files into {path}",
+    "extractedSkipped": "Extracted {n} files, skipped {skipped} (existing files, links or unsafe names)"
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",

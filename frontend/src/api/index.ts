@@ -10,6 +10,7 @@ import * as permissions from "./permissions";
 import * as activity from "./activity";
 import * as trash from "./trash";
 import * as du from "./du";
+import * as archive from "./archive";
 
 export {
   files,
@@ -24,4 +25,5 @@ export {
   activity,
   trash,
   du,
+  archive,
 };

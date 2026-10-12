@@ -33,6 +33,8 @@ import FolderColor from "./FolderColor.vue";
 import SyncFolder from "./SyncFolder.vue";
 import SyncIgnores from "./SyncIgnores.vue";
 import Permissions from "./Permissions.vue";
+import Compress from "./Compress.vue";
+import Extract from "./Extract.vue";
 
 const layoutStore = useLayoutStore();
 
@@ -60,6 +62,8 @@ const components = new Map<string, any>([
   ["syncFolder", SyncFolder],
   ["syncIgnores", SyncIgnores],
   ["permissions", Permissions],
+  ["compress", Compress],
+  ["extract", Extract],
 ]);
 
 const modal = computed(() => {

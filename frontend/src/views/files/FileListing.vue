@@ -43,6 +43,18 @@
             @action="openDiskUsage"
           />
           <action
+            v-if="headerButtons.compress"
+            icon="folder_zip"
+            :label="t('archive.compress')"
+            @action="openCompress"
+          />
+          <action
+            v-if="headerButtons.extract"
+            icon="unarchive"
+            :label="t('archive.extract')"
+            @action="openExtract"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -152,6 +164,18 @@
         icon="donut_large"
         :label="t('du.title')"
         @action="openDiskUsage"
+      />
+      <action
+        v-if="headerButtons.compress"
+        icon="folder_zip"
+        :label="t('archive.compress')"
+        @action="openCompress"
+      />
+      <action
+        v-if="headerButtons.extract"
+        icon="unarchive"
+        :label="t('archive.extract')"
+        @action="openExtract"
       />
       <action
         v-if="headerButtons.copy"
@@ -355,6 +379,18 @@
             @action="openDiskUsage"
           />
           <action
+            v-if="headerButtons.compress"
+            icon="folder_zip"
+            :label="t('archive.compress')"
+            @action="openCompress"
+          />
+          <action
+            v-if="headerButtons.extract"
+            icon="unarchive"
+            :label="t('archive.extract')"
+            @action="openExtract"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -430,6 +466,7 @@ import { enableExec, enableSync } from "@/utils/constants";
 import { useSyncStore } from "@/stores/sync";
 import { urlToFavorite } from "@/utils/favorites";
 import { encodePath } from "@/utils/url";
+import { isArchiveName } from "@/utils/archives";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
 import css from "@/utils/css";
@@ -576,6 +613,16 @@ const headerButtons = computed(() => {
       authStore.user?.perm.admin &&
       fileStore.selectedCount === 1 &&
       !!fileStore.req?.items[fileStore.selected[0]]?.isDir,
+    compress:
+      fileStore.selectedCount > 0 &&
+      authStore.user?.perm.create &&
+      authStore.user?.perm.download,
+    extract:
+      fileStore.selectedCount === 1 &&
+      authStore.user?.perm.create &&
+      !!fileStore.req?.items[fileStore.selected[0]] &&
+      !fileStore.req.items[fileStore.selected[0]].isDir &&
+      isArchiveName(fileStore.req.items[fileStore.selected[0]].name),
     permissions: fileStore.selectedCount > 0 && authStore.user?.perm.modify,
     // For the selected folder, or the folder being viewed.
     diskUsage:
@@ -764,6 +811,35 @@ const openSync = (): void => {
   layoutStore.showHover({
     prompt: "syncFolder",
     props: { path: urlToFavorite(item.url) },
+  });
+};
+
+const openCompress = (): void => {
+  const items = fileStore.selected
+    .map((index) => fileStore.req?.items[index])
+    .filter((item): item is ResourceItem => !!item)
+    .map((item) => ({ path: urlToFavorite(item.url), name: item.name }));
+  if (items.length === 0) return;
+
+  layoutStore.showHover({
+    prompt: "compress",
+    props: { items, folder: urlToFavorite(route.path) },
+  });
+};
+
+const openExtract = (): void => {
+  const item = fileStore.req?.items[fileStore.selected[0]];
+  if (!item) return;
+
+  layoutStore.showHover({
+    prompt: "extract",
+    props: {
+      archive: {
+        path: urlToFavorite(item.url),
+        name: item.name,
+        folder: urlToFavorite(route.path),
+      },
+    },
   });
 };
 
