@@ -1,66 +1,67 @@
-# Private deployment (amd64 branch: main). Open http://100.64.0.7:38002 (Tailscale address).
+# Private deployment (amd64 branch: main).
 #
-# First time: create the Syncthing API key shared by the two containers.
-#   echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env
-# Optional in .env: SYNC_PORT (default 23000) and DISCOVERY_PORT (default 23001).
+# Everything that differs per machine lives in .env (see .env.example): the
+# Tailscale address, the ports, the folder to serve. Create it once:
+#   cp .env.example .env     # then edit HOST_IP, DATA_DIR, ...
+#   echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" >> .env
 # Then:
 #   docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
 # (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
-# See SYNC.md for how folder syncing works.
+# See the README for how folder syncing works.
 services:
   filebrowser:
-    image: q25459768/filebrowser:${FB_TAG:-amd64} # pin a release with FB_TAG=<version>-amd64 in .env
+    image: q25459768/filebrowser:${FB_TAG:-amd64}
     platform: linux/amd64
     container_name: filebrowser
     restart: unless-stopped
     depends_on:
       - syncthing
     environment:
-      - PUID=0
-      - PGID=0
+      - PUID=${PUID:-0}
+      - PGID=${PGID:-0}
       - FB_NOAUTH=true
       - FB_SYNCTHING_URL=http://syncthing:8384
-      - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
+      - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY:?set SYNCTHING_API_KEY in .env}
       - FB_SYNCTHING_PRIVATE_NETWORK=true
       # Port assumed for device addresses entered without one; keep it equal to SYNC_PORT.
       - FB_SYNCTHING_PORT=${SYNC_PORT:-23000}
     ports:
-      - "100.64.0.7:38002:80" #修改成实际地址
+      - "${HOST_IP:?set HOST_IP in .env}:${WEB_PORT:-38002}:80"
     volumes:
-      - /root:/srv
+      - ${DATA_DIR:-/root}:/srv
       - ./config:/config
       - ./database:/database
-    # /root is served, so hide ~/.ssh: an empty read-only tmpfs covers it inside
-    # the container (the real directory on the host is not touched). Add more
-    # lines like this for other secrets, e.g. /srv/.gnupg.
+    # The served folder may be a home directory, so hide ~/.ssh: an empty
+    # read-only tmpfs covers it inside the container (the real directory on the
+    # host is not touched). Add more lines like this for other secrets, e.g.
+    # /srv/.gnupg.
     tmpfs:
       - /srv/.ssh:ro,size=4k,mode=0555
 
-  # Does the actual syncing. Its web UI is not published: File Browser is the
-  # UI. Only the sync port is exposed, on the Tailscale address.
+  # Does the actual syncing. File Browser is the UI for it, but Syncthing's own
+  # web interface is published too, on SYNCTHING_GUI_PORT. It has no password
+  # until you set one in its Settings > GUI, so keep it on the Tailscale address.
   syncthing:
     image: syncthing/syncthing:2
     platform: linux/amd64
     container_name: filebrowser-syncthing
-    hostname: fb-amd64 #对方看到的设备名，两台机器要不同
+    hostname: ${SYNCTHING_NAME:-fb-amd64} # the device name the other side sees; differs per machine
     restart: unless-stopped
     environment:
-      - PUID=0
-      - PGID=0
+      - PUID=${PUID:-0}
+      - PGID=${PGID:-0}
       - STGUIADDRESS=0.0.0.0:8384
-      - STGUIAPIKEY=${SYNCTHING_API_KEY:?create .env, see the comment at the top}
+      - STGUIAPIKEY=${SYNCTHING_API_KEY:?set SYNCTHING_API_KEY in .env}
       - STNODEFAULTFOLDER=1
     ports:
-      # host port : container port. Change the host ports with SYNC_PORT and
-      # DISCOVERY_PORT in .env (defaults 23000 / 23001); never the container ports.
-      - "100.64.0.7:${SYNC_PORT:-23000}:22000/tcp" #修改成实际地址
-      - "100.64.0.7:${SYNC_PORT:-23000}:22000/udp" #修改成实际地址
-      - "100.64.0.7:${DISCOVERY_PORT:-23001}:21027/udp" #修改成实际地址
+      # host port : container port. Change the host ports in .env, never the
+      # container ports.
+      - "${HOST_IP:?set HOST_IP in .env}:${SYNCTHING_GUI_PORT:-38003}:8384"
+      - "${HOST_IP:?set HOST_IP in .env}:${SYNC_PORT:-23000}:22000/tcp"
+      - "${HOST_IP:?set HOST_IP in .env}:${SYNC_PORT:-23000}:22000/udp"
+      - "${HOST_IP:?set HOST_IP in .env}:${DISCOVERY_PORT:-23001}:21027/udp"
     volumes:
-      - /root:/srv # must be the same mount as File Browser
+      - ${DATA_DIR:-/root}:/srv # must be the same folder as File Browser's
       - ./syncthing-config:/var/syncthing/config
-    # /root is served, so hide ~/.ssh: an empty read-only tmpfs covers it inside
-    # the container (the real directory on the host is not touched). Add more
-    # lines like this for other secrets, e.g. /srv/.gnupg.
     tmpfs:
       - /srv/.ssh:ro,size=4k,mode=0555
