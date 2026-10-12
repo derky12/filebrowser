@@ -83,6 +83,11 @@ func NewHandler(
 	api.PathPrefix("/permissions").Handler(monkey(permissionsGetHandler, "/api/permissions")).Methods("GET")
 	api.PathPrefix("/permissions").Handler(monkey(permissionsPatchHandler, "/api/permissions")).Methods("PATCH")
 
+	api.Handle("/webdav", monkey(webdavGetHandler, "")).Methods("GET")
+	api.Handle("/webdav/shares", monkey(webdavShareCreateHandler, "")).Methods("POST")
+	api.Handle("/webdav/shares/{name}", monkey(webdavSharePatchHandler, "")).Methods("PATCH")
+	api.Handle("/webdav/shares/{name}", monkey(webdavShareDeleteHandler, "")).Methods("DELETE")
+
 	api.Handle("/archive", monkey(archivePostHandler, "")).Methods("POST")
 	api.PathPrefix("/du").Handler(monkey(diskUsageHandler, "/api/du")).Methods("GET")
 	api.PathPrefix("/usage").Handler(monkey(diskUsage, "/api/usage")).Methods("GET")

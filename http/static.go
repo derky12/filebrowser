@@ -50,6 +50,7 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 		"EnableExec":            d.server.EnableExec,
 		"EnableSync":            d.server.SyncthingURL != "",
 		"EnableTrash":           d.settings.TrashConfig().Enabled,
+		"EnableWebDAV":          d.server.WebDAV,
 		"TusSettings":           d.settings.Tus,
 		"HideLoginButton":       d.settings.HideLoginButton,
 	}

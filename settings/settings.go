@@ -40,6 +40,18 @@ type Settings struct {
 	HideDotfiles          bool                `json:"hideDotfiles"`
 	// Trash is nil until it is configured; TrashConfig then gives the defaults.
 	Trash *Trash `json:"trash,omitempty"`
+	// WebDAVShares are the folders shared over WebDAV, see the webdav server.
+	WebDAVShares []WebDAVShare `json:"webdavShares,omitempty"`
+}
+
+// WebDAVShare is a folder served over WebDAV under its name.
+type WebDAVShare struct {
+	Name     string    `json:"name"`     // the first path element of its URL
+	Dir      string    `json:"dir"`      // folder, relative to the server root, "/"-separated
+	Path     string    `json:"path"`     // where it was shared from in the sharer's scope (display only)
+	ReadOnly bool      `json:"readOnly"` // no changes through WebDAV
+	By       string    `json:"by"`
+	Created  time.Time `json:"created"`
 }
 
 // Trash configures the recycle bin that deleted files are moved to.
@@ -93,6 +105,16 @@ type Server struct {
 	// SyncthingPort is the sync port other devices listen on, used when a
 	// device address is entered without one.
 	SyncthingPort string `json:"-"`
+
+	// WebDAV server, see http/webdav.go. Runtime-only, like the Syncthing settings.
+	WebDAV            bool   `json:"-"`
+	WebDAVPort        string `json:"-"` // port the server listens on inside the container
+	WebDAVHostPort    string `json:"-"` // port it is published on, only to show URLs
+	WebDAVUser        string `json:"-"`
+	WebDAVPassword    string `json:"-"`
+	WebDAVPrefix      string `json:"-"` // URL path prefix when it is served under a sub-path of a proxy
+	WebDAVPublicURL   string `json:"-"` // where clients reach it, when that is not host:port
+	WebDAVBehindProxy bool   `json:"-"` // trust X-Forwarded-For from a reverse proxy
 
 	// ActivityDays is how many days the activity log is kept; 0 turns it off.
 	// Runtime-only, like the Syncthing settings.

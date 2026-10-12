@@ -96,6 +96,14 @@ func init() {
 	flags.String("syncthingUrl", "", "base URL of a Syncthing instance to enable folder syncing (e.g. http://syncthing:8384)")
 	flags.String("syncthingApiKey", "", "API key of the Syncthing instance")
 	flags.String("syncthingPort", "22000", "sync port of the other Syncthing devices, used when a device address has no port")
+	flags.Bool("webdav", false, "serve folders shared from the web interface over WebDAV (needs --webdavPassword)")
+	flags.String("webdavPort", "8090", "port the WebDAV server listens on")
+	flags.String("webdavHostPort", "", "port the WebDAV server is published on, only used to show URLs")
+	flags.String("webdavUser", "webdav", "user name of the WebDAV server")
+	flags.String("webdavPassword", "", "password of the WebDAV server (at least 8 characters)")
+	flags.String("webdavPrefix", "", "URL path prefix of the WebDAV server, for serving it under a sub-path of a proxy, e.g. /dav")
+	flags.String("webdavPublicUrl", "", "URL clients use to reach the WebDAV server, e.g. https://dav.example.com")
+	flags.Bool("webdavBehindProxy", false, "trust X-Forwarded-For of a reverse proxy in front of the WebDAV server")
 	flags.Int("activityDays", 90, "days to keep the activity log (0 turns the log off)")
 	flags.Bool("syncthingPrivateNetwork", false, "turn off Syncthing discovery, relays and NAT traversal (for VPN-only setups)")
 	addServerFlags(flags)
@@ -269,6 +277,23 @@ user created with the credentials from options "username" and "password".`,
 			log.Println("Stopped serving new connections.")
 		}()
 
+		var davSrv *http.Server
+		if server.WebDAV {
+			davListener, err := net.Listen("tcp", ":"+server.WebDAVPort)
+			if err != nil {
+				return err
+			}
+			defer davListener.Close()
+
+			davSrv = fbhttp.NewWebDAVServer(st.Storage, server)
+			log.Println("WebDAV listening on", davListener.Addr().String())
+			go func() {
+				if err := davSrv.Serve(davListener); !errors.Is(err, http.ErrServerClosed) {
+					log.Fatalf("WebDAV server error: %v", err)
+				}
+			}()
+		}
+
 		sigc := make(chan os.Signal, 1)
 		signal.Notify(sigc,
 			os.Interrupt,
@@ -283,6 +308,11 @@ user created with the credentials from options "username" and "password".`,
 		shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownRelease()
 
+		if davSrv != nil {
+			if err := davSrv.Shutdown(shutdownCtx); err != nil {
+				log.Printf("WebDAV shutdown error: %v", err)
+			}
+		}
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Fatalf("HTTP shutdown error: %v", err)
 		}
@@ -375,6 +405,31 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 	server.SyncthingPrivate = v.GetBool("syncthingPrivateNetwork")
 	server.SyncthingPort = v.GetString("syncthingPort")
 	server.ActivityDays = v.GetInt("activityDays")
+	server.WebDAV = v.GetBool("webdav")
+	server.WebDAVPort = v.GetString("webdavPort")
+	server.WebDAVHostPort = v.GetString("webdavHostPort")
+	server.WebDAVUser = v.GetString("webdavUser")
+	server.WebDAVPassword = v.GetString("webdavPassword")
+	server.WebDAVPrefix = v.GetString("webdavPrefix")
+	server.WebDAVPublicURL = strings.TrimRight(v.GetString("webdavPublicUrl"), "/")
+	server.WebDAVBehindProxy = v.GetBool("webdavBehindProxy")
+	if server.WebDAVPort == "" {
+		server.WebDAVPort = "8090"
+	}
+	if server.WebDAVUser == "" {
+		server.WebDAVUser = "webdav"
+	}
+	if server.WebDAVPrefix != "" {
+		server.WebDAVPrefix = "/" + strings.Trim(server.WebDAVPrefix, "/")
+	}
+	if server.WebDAV {
+		if port, err := strconv.Atoi(server.WebDAVPort); err != nil || port < 1 || port > 65535 {
+			return nil, fmt.Errorf("--webdavPort must be a port number, got %q", server.WebDAVPort)
+		}
+		if len(server.WebDAVPassword) < 8 {
+			return nil, errors.New("--webdavPassword is required with --webdav and must be at least 8 characters")
+		}
+	}
 	if port, err := strconv.Atoi(server.SyncthingPort); err != nil || port < 1 || port > 65535 {
 		return nil, fmt.Errorf("--syncthingPort must be a port number, got %q", server.SyncthingPort)
 	}
