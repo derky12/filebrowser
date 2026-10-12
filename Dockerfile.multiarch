@@ -51,6 +51,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 ## Stage 3: runtime image (same layout as the official Dockerfile)
 FROM alpine:${ALPINE_VERSION}
 
+# Version, commit and the changes of this release (see scripts/release.sh).
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG CHANGES=""
+LABEL org.opencontainers.image.title="File Browser (fork)" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      com.filebrowser.fork.changes="${CHANGES}"
+
 RUN apk add --no-cache ca-certificates mailcap tini su-exec jq
 
 ENV PUID=1000 \

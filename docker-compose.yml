@@ -9,7 +9,8 @@
 # See SYNC.md for how folder syncing works.
 services:
   filebrowser:
-    image: q25459768/filebrowser:amd64
+    image: q25459768/filebrowser:${FB_TAG:-amd64} # pin a release with FB_TAG=<version>-amd64 in .env
+    platform: linux/amd64
     container_name: filebrowser
     restart: unless-stopped
     depends_on:
@@ -39,6 +40,7 @@ services:
   # UI. Only the sync port is exposed, on the Tailscale address.
   syncthing:
     image: syncthing/syncthing:2
+    platform: linux/amd64
     container_name: filebrowser-syncthing
     hostname: fb-amd64 #对方看到的设备名，两台机器要不同
     restart: unless-stopped

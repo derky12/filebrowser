@@ -20,17 +20,19 @@ File Browser provides a file managing interface within a specified directory and
 | [收藏夹](#收藏夹) | 常用文件夹点星号，出现在侧栏，可以直接把文件拖进去 | 后端 + 前端 |
 | [文件夹颜色](#文件夹颜色) | 用预设色板给文件夹换颜色 | 后端 + 前端 |
 | [文件夹同步](#文件夹同步) | 在 File Browser 里把一个文件夹同步到另一台机器（单向/双向，对方同意后生效） | 后端 + 前端 + Syncthing |
-| [多架构 Docker 构建](#多架构-docker-构建与发布) | 从源码构建 amd64 / arm64 镜像 | Docker |
+| [右键权限](#右键权限chmod--chown) | 右键修改文件和文件夹的 chmod / chown | 后端 + 前端 |
+| [文本编辑器](#文本编辑器) | 大号编程字体、按语言缩进、按后缀自动格式化、离线语法高亮 | 后端 + 前端 |
+| [多架构 Docker 构建](#多架构-docker-构建与发布) | 从源码构建 amd64 / arm64 镜像，带版本号和变更记录 | Docker |
 
 ### 分支、镜像与机器
 
 | 分支 | 机器 | 镜像 | Tailscale 地址 | Syncthing 设备名 |
 |---|---|---|---|---|
-| `main` | amd64 | `q25459768/filebrowser:amd64` | `100.64.0.7` | `fb-amd64` |
-| `arm64` | arm64 | `q25459768/filebrowser:arm64` | `100.64.0.30` | `fb-arm64` |
+| `main` | amd64 | `q25459768/filebrowser:amd64`（`platform: linux/amd64`） | `100.64.0.7` | `fb-amd64` |
+| `arm64` | arm64 | `q25459768/filebrowser:arm64`（`platform: linux/arm64`） | `100.64.0.30` | `fb-arm64` |
 
-- 两个分支的代码完全相同，**只有 `docker-compose.yml` 里每台机器自己的 7 行不同**：头部注释、镜像 tag、Web 端口的 IP、Syncthing 主机名、同步端口和发现端口的 IP。
-- 修改 `main` 之后，把 `main` 合并进 `arm64`，再把 `docker-compose.yml` 里这 7 行换成 arm64 的值。
+- 两个分支的代码完全相同，**只有 `docker-compose.yml` 里每台机器自己的 9 行不同**：头部注释、File Browser 镜像 tag、两个服务的 `platform`（`linux/amd64` / `linux/arm64`）、Web 端口的 IP、Syncthing 主机名、同步端口和发现端口的 IP。
+- 修改 `main` 之后，把 `main` 合并进 `arm64`，再把 `docker-compose.yml` 里这 9 行换成 arm64 的值。
 - 仓库里还保留上游自带的 `compose.yaml`（带 redis）。因为它优先于 `docker-compose.yml`，所以启动时必须写 `-f docker-compose.yml`。
 - `compose.multiarch.yaml` 是一份不含 Syncthing、从源码构建的简单示例，日常不用。
 
@@ -171,18 +173,63 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - 双向同步时，一边的删除会同步到另一边，所以建议保持回收站开启。
 - 已在本机用两套 Syncthing + File Browser 容器完整测试过，包括配对、两种模式、暂停恢复、限速下的速度显示；没有在两台真实机器之间长期运行验证过。
 
+### 右键权限（chmod / chown）
+
+- **用法**：右键点击文件或文件夹（也可以多选），选“权限”（锁形图标，顶栏和手机的选择条里也有）。弹窗里有读/写/执行 × 所有者/所属组/其他人的勾选格和八进制输入框（两者联动）；管理员还能改所有者和所属组（填服务器上已有的名称或数字 ID，不改就留空）；对文件夹可以勾选“同时应用到文件夹内的所有内容”，并分别指定里面文件和里面文件夹的权限（默认文件为去掉执行位的权限，文件夹为同样的权限）。没改任何东西时“应用”按钮是灰的。
+- **接口**（`http/permissions.go`）：`GET /api/permissions/{path}` 返回 `{path, isDir, mode, uid, gid, owner, group, canChown}`；`PATCH /api/permissions/{path}`，body 为 `{mode?, recursive?, fileMode?, dirMode?, owner?, group?}`，返回 `{changed, skipped, failed, errors[]}`。`mode` 作用于项目自身；`fileMode` / `dirMode` 只在 `recursive` 时作用于里面的文件和文件夹。
+- **权限范围**：改 mode 需要用户有 `modify` 权限；改 owner / group 只允许管理员，并且服务器进程必须是 root（否则 `canChown` 为 false，界面里不显示这两项）；路径必须通过访问规则（`d.Check`）。
+- **安全限制**：
+  - **拒绝 scope 根**（例如 `/root` 本身）：改家目录的权限会让 sshd 拒绝登录。
+  - **拒绝符号链接**：目标本身是符号链接、或路径经过符号链接，都返回 400；递归时符号链接被跳过且不会被跟随（chown 用 `Lchown`）。
+  - **只允许 9 个 rwx 位**（`0`–`0777`）：setuid、setgid、sticky 位会被拒绝，原有的这些位会被清掉。
+  - 递归时被访问规则隐藏的条目会被跳过；最多处理 200000 个条目（`maxPermissionEntries`）；先收集再从最深处开始应用，这样收紧文件夹权限不会妨碍处理它里面的内容。
+  - 每次修改都会写日志：`permissions: user "x" changed /path mode=... recursive=...: N changed, M skipped, K failed`。
+  - Windows 构建不支持改所有者（`permissions_windows.go` 是桩实现）。
+- **限制**：多选时显示的是第一个项目的值，会应用到所有选中的项目；名称按服务器（容器）里的用户库解析，宿主机上的用户请填数字 ID；不处理 ACL 和扩展属性。注意：在双向同步的目录里改权限，Syncthing 默认会把权限位同步到对方（所有者不会）。
+
+### 文本编辑器
+
+在现有的 Ace 编辑器（`frontend/src/views/files/Editor.vue`）上做了改进：
+
+- **默认外观**：16px（原来 14px，仍可用 ＋/－ 调整并记在浏览器里）；字体是打包进应用的 JetBrains Mono（拉丁字符，400 和 700），后备 Fira Code、Cascadia Code、SF Mono、Menlo、Consolas；行高 1.6；缩进参考线；允许滚动到末尾之后。
+- **按语言缩进**（`frontend/src/utils/editor/formatters.ts` 的 `indentFor`）：YAML、JSON、JS/TS、CSS/SCSS/Less、HTML、Vue、Markdown、XML、TOML 用 2 个空格；Python、Rust、Java、Kotlin、C/C++、C# 用 4 个空格；Go 和 Makefile 用 Tab；其他 4 个空格。
+- **格式化**：顶栏的“格式化”按钮（魔棒图标）或快捷键 **Alt+Shift+F**；编辑器右上还有“保存时格式化”开关（默认关，记在浏览器里的 `editorFormatOnSave`）。格式化是一次可撤销的编辑，光标尽量保持在原位；文件有语法错误时只提示原因，不会改动内容，保存也不会被阻止。没有格式化器的类型（例如 `.txt`）不显示按钮。
+
+| 后缀 | 格式化器 | 运行位置 |
+|---|---|---|
+| `yml` `yaml` | Prettier（yaml） | 浏览器 |
+| `json` `jsonc` `json5` | Prettier | 浏览器 |
+| `js` `jsx` `mjs` `cjs` `ts` `tsx` `mts` `cts` | Prettier（babel / typescript） | 浏览器 |
+| `css` `scss` `less` | Prettier（postcss） | 浏览器 |
+| `html` `htm` `vue` | Prettier | 浏览器 |
+| `md` `markdown` | Prettier | 浏览器 |
+| `py` `pyi` | Ruff（WebAssembly，行宽 88） | 浏览器 |
+| `sql` | sql-formatter（关键字大写） | 浏览器 |
+| `go` | gofmt（标准库 `go/format`），`POST /api/format/go` | 服务器 |
+
+- Prettier 行宽 100；各格式化器的代码都是按需动态加载的，打开编辑器时只下载当前文件需要的部分。Ruff 的 wasm 约 10.5 MB，只在第一次格式化 Python 时才下载，之后由浏览器缓存。
+- **不支持**：shell、TOML、XML、Rust 等（没有合适的浏览器端格式化器）；可以以后再加。
+- **离线语法高亮与语法检查**：原来的编辑器把 Ace 的语言模式、主题和 worker 设成从 `cdn.jsdelivr.net` 加载，但应用的内容安全策略（`default-src 'self'`）会拦截它，而且私有网络本来就可能没有外网。现在 `vite.config.ts` 里的 `aceAssets` 插件把需要的压缩版文件原样复制到 `assets/ace/`（约 60 种语言模式及其代码片段、全部 48 个主题、7 个 worker：css、html、javascript、json、lua、xml、yaml），`aceAssets.ts` 负责注册地址。列表之外的语言仍可打开，按纯文本显示。列表在 `frontend/src/utils/editor/aceFiles.ts`。
+- **体积**：前端产物从约 12 MB 增加到约 35 MB（Ruff wasm 10.5 MB、Ace 资源约 6 MB、Prettier 各语言插件和字体），Go 二进制相应变大，但这些文件都是按需下载的。
+- **顺带的修复**：静态文件处理器原来对所有 `.js` 文件只提供预压缩的 `.gz` 副本，没有副本就 404；构建会跳过极小的文件，所以这种脚本（例如导出 wasm 地址的小块）会 404。现在没有 `.gz` 时回退到原文件（`http/static_test.go`）。
+
 ### 多架构 Docker 构建与发布
 
 - **`Dockerfile.multiarch`**：从源码构建，三个阶段。① 在构建机上用 `node:24-alpine` 构建前端；② 在构建机上用 `golang:1.25-alpine` 交叉编译 Go 二进制（`CGO_ENABLED=0`，`-trimpath`，`-ldflags "-s -w"`，带 `VERSION` 和 `COMMIT`）；③ `alpine:3.23` 最终镜像，带 `tini`、`su-exec`、`jq`、`ca-certificates`、`mailcap`。前端和 Go 编译都在构建机上原生运行，不需要 QEMU。
 - **运行用户**：`docker/multiarch/entrypoint.sh` 按 `PUID` / `PGID` 创建用户后降权运行；`PUID=0` 时直接以 root 运行。它只对 `/config` 和 `/database` 做 `chown`，不碰 `/srv`。
 - **QEMU**：最终阶段有一步 `apk add` 要在目标架构下执行，所以在 amd64 机器上构建 arm64 镜像之前，要先执行一次 `docker run --privileged --rm tonistiigi/binfmt --install all`；在 arm64 机器上原生构建则不需要。
-- **发布流程**（每次改动后，`main` 为 amd64，`arm64` 分支为 arm64）：
-  1. 在 `main` 上提交，合并进 `arm64` 并确认 `docker-compose.yml` 只差那 7 行。
-  2. 本机 `docker login` 后构建并推送 amd64：`docker buildx build -f Dockerfile.multiarch --platform linux/amd64 --build-arg VERSION=2.63.23 --build-arg COMMIT=$(git rev-parse --short HEAD) -t q25459768/filebrowser:amd64 --push .`
-  3. 把 `arm64` 分支的源码传到 arm 机器（`git archive arm64 | ssh -p 10086 100.64.0.30 'tar -x -C <dir>'`），在那里原生构建并推送 `:arm64`。
-  4. `git push origin main arm64`。
-  5. 在两台机器上 `docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。
-  - Docker Hub 的登录凭据不要写进仓库；用完 `docker logout`。
+- **版本号与变更记录**：版本形如 `<上游版本>-fork.<n>`（当前见仓库根目录的 `VERSION` 文件），它同时是：侧栏显示的版本、Docker 镜像的版本 tag、git 标签 `v<版本>`。每个版本在 `CHANGES.md` 里要有一节（`## <版本> (日期)` 加若干 `- ` 条目），`scripts/release.sh` 没有对应条目就会拒绝发布。每个镜像带这些 tag 和标签：
+  - `q25459768/filebrowser:<版本>-amd64` / `:<版本>-arm64`：固定版本，用于回滚；
+  - `q25459768/filebrowser:amd64` / `:arm64`：滚动 tag，`docker-compose.yml` 默认拉这个；
+  - 镜像标签 `org.opencontainers.image.version`、`org.opencontainers.image.revision`（提交）和 `com.filebrowser.fork.changes`（该版本的变更，一行，用 `; ` 分隔）：`docker inspect --format '{{ index .Config.Labels "com.filebrowser.fork.changes" }}' q25459768/filebrowser:<版本>-amd64`。
+  - 想固定某个版本时，在 `.env` 里写 `FB_TAG=<版本>-amd64`（arm64 机器写 `-arm64`），compose 就会用它。
+- **发布流程**（`main` 为 amd64，`arm64` 分支为 arm64）：
+  1. 在 `main` 上改好代码，把 `VERSION` 加一，并在 `CHANGES.md` 里写这个版本的变更，提交。
+  2. 合并进 `arm64` 分支，并把 `docker-compose.yml` 改回 arm64 的值（9 行，见上）。
+  3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `100.64.0.30`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
+  4. 在两台机器上 `docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。
+  - `scripts/release.sh amd64|arm64` 可以单独构建并推送一个架构；`scripts/changes.sh <版本>` 打印某个版本的变更。
+  - Docker Hub 的令牌不要写进仓库，用完即换。
 
 ### 部署
 
@@ -190,7 +237,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 
 1. **首次**：创建 `.env`（见 `.env.example`）：`echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" > .env`。这个密钥由两个容器共用，缺少时 compose 会直接报错。`.env` 和 `syncthing-config/` 已在 `.gitignore` 里。
 2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<Tailscale IP>:38002`。
-3. **`.env` 变量**：`SYNCTHING_API_KEY`（必填）、`SYNC_PORT`（默认 23000）、`DISCOVERY_PORT`（默认 23001）。
+3. **`.env` 变量**：`SYNCTHING_API_KEY`（必填）、`SYNC_PORT`（默认 23000）、`DISCOVERY_PORT`（默认 23001）、`FB_TAG`（可选，固定 File Browser 镜像版本，默认 `amd64` / `arm64`）。
 4. **数据**：`/root` 挂到 `/srv`（两个容器必须一致）；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
 5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）。
 
@@ -199,13 +246,14 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - 实测结果：两个容器都**不会**改变挂载目录的属主或权限（`PUID=0` 和 `PUID=1000` 都试了，目录、`.ssh`、`authorized_keys` 的属主和权限全程不变）。Syncthing 的启动脚本只 `chown` 它自己的 `/var/syncthing`，不递归；File Browser 只 `chown` `/config` 和 `/database`。所以挂载 `/root` 本身不会破坏 ssh。
 - `PUID=1000` 去访问属主为 root 的目录会得到 403。解决办法是保持 `PUID=0` / `PGID=0`，**不要**为此去 `chown` / `chmod` 家目录：sshd 对家目录和 `.ssh` 的属主、权限要求很严，一改就会让 ssh 异常。
 - 因为 `/root` 被整体服务，里面的 `~/.ssh` 私钥原本会被 File Browser 读到，同步目录也可能被指向 `.ssh` 并覆盖 `authorized_keys`。所以 compose 在两个服务里都给 `/srv/.ssh` 盖了一个空的只读 `tmpfs`（`/srv/.ssh:ro,size=4k,mode=0555`）：容器里看到的是空目录，宿主机上的真实目录完全不动。实测读取私钥返回 404，写入失败。其他机密目录（例如 `.gnupg`）照样多加一行 `tmpfs` 即可。
+- 权限弹窗（chmod / chown）**拒绝 scope 根**，所以不会因为在界面里误改 `/root` 本身的权限而让 ssh 异常。
 - 上面的 compose 同时设置了 `FB_NOAUTH=true`：能连到这个端口的人不用登录就能读写被服务的整个目录。只走 Tailscale 时，风险取决于 tailnet 里有谁和 ACL 怎么设；不要用 Tailscale Funnel 把它暴露到公网。
 
 ### 数据与代码改动清单
 
-- 后端新增：`syncthing/`（客户端）、`http/sync.go`、`http/users_favorites_test.go`、`http/sync_test.go`、`users/favorites_test.go`；修改 `users/users.go`（`Favorites`、`FolderColors` 及校验）、`http/users.go`（校验失败返回 400）、`http/http.go`（注册 `/api/sync`）、`http/static.go`（向前端传 `EnableSync`）、`settings/settings.go` 和 `cmd/root.go`（运行时的 Syncthing 参数）。
-- 前端新增：`api/sync.ts`、`types/sync.d.ts`、`utils/{drop,favorites,folderColors,syncRate}.ts`、`components/prompts/{FolderColor,SyncFolder}.vue`、`components/settings/SyncDeviceForm.vue`、`views/settings/Sync.vue`；修改 `stores/auth.ts`、`Sidebar.vue`、`ListingItem.vue`、`FileListing.vue` 等。
-- 部署新增：`Dockerfile.multiarch`、`docker/multiarch/entrypoint.sh`、`docker-compose.yml`、`.env.example`、`compose.multiarch.yaml`。
+- 后端新增：`syncthing/`（客户端）、`http/sync.go`、`http/permissions.go`（+ `permissions_unix.go` / `permissions_windows.go`）、`http/format.go`、`http/static_test.go`、`http/users_favorites_test.go`、`http/sync_test.go`、`http/permissions_test.go`、`http/format_test.go`、`users/favorites_test.go`；修改 `users/users.go`（`Favorites`、`FolderColors` 及校验）、`http/users.go`（校验失败返回 400）、`http/http.go`（注册 `/api/sync`）、`http/static.go`（向前端传 `EnableSync`）、`settings/settings.go` 和 `cmd/root.go`（运行时的 Syncthing 参数）。
+- 前端新增：`api/sync.ts`、`types/sync.d.ts`、`utils/{drop,favorites,folderColors,syncRate}.ts`、`api/{permissions,formatGo}.ts`、`utils/editor/{formatters,aceAssets,aceFiles}.ts`、`components/prompts/{FolderColor,SyncFolder,Permissions}.vue`、`components/settings/SyncDeviceForm.vue`、`views/settings/Sync.vue`；修改 `stores/auth.ts`、`Sidebar.vue`、`ListingItem.vue`、`FileListing.vue` 等。
+- 部署与发布新增：`Dockerfile.multiarch`、`docker/multiarch/entrypoint.sh`、`docker-compose.yml`、`.env.example`、`compose.multiarch.yaml`、`VERSION`、`CHANGES.md`、`scripts/{release,release-all,changes}.sh`。
 
 ### 开发与测试
 
@@ -216,9 +264,9 @@ pnpm run typecheck && pnpm run lint && pnpm test          # 前端（vitest）
 pnpm run build                                            # 构建前端到 frontend/dist，再 go build 即可得到带界面的二进制
 ```
 
-- **后端测试**：`users/favorites_test.go`（收藏夹和颜色的规范化与校验）、`http/users_favorites_test.go`（普通用户可以改、非法输入返回 400）、`http/sync_test.go`（用内存里的假 Syncthing 服务器，覆盖权限、路径校验、符号链接、重叠、设备管理、接受共享、状态和速度字段、错误映射）。对符号链接防护做过变异测试：去掉防护后对应用例会失败。
-- **前端测试**：`utils/__tests__/favorites.test.ts`、`stores/__tests__/auth-favorites.test.ts`（含“令牌刷新后收藏夹仍在”的回归测试）、`utils/__tests__/sync-rate.test.ts`。
-- **端到端**：用 Docker 起两套真实的 Syncthing + File Browser，再用 Playwright 驱动浏览器，把配对、共享、接受、同步、暂停恢复、拖放到收藏夹、收藏夹和颜色在子目录跳转和刷新后是否保留、传输速度显示都走过一遍。这部分是手工脚本，没有放进仓库。
+- **后端测试**：`users/favorites_test.go`（收藏夹和颜色的规范化与校验）、`http/users_favorites_test.go`（普通用户可以改、非法输入返回 400）、`http/sync_test.go`（用内存里的假 Syncthing 服务器，覆盖权限、路径校验、符号链接、重叠、设备管理、接受共享、状态和速度字段、错误映射）、`http/permissions_test.go`（模式、递归、拒绝 scope 根/符号链接/setuid、规则隐藏、改属主）、`http/format_test.go`、`http/static_test.go`。对符号链接防护做过变异测试：去掉防护后对应用例会失败。
+- **前端测试**：`utils/__tests__/favorites.test.ts`、`stores/__tests__/auth-favorites.test.ts`（含“令牌刷新后收藏夹仍在”的回归测试）、`utils/__tests__/sync-rate.test.ts`、`utils/__tests__/formatters.test.ts`（真实运行 Prettier、Ruff、sql-formatter，Go 的服务器调用用 mock）。
+- **端到端**：用 Docker 起两套真实的 Syncthing + File Browser，再用 Playwright 驱动浏览器，把配对、共享、接受、同步、暂停恢复、拖放到收藏夹、收藏夹和颜色在子目录跳转和刷新后是否保留、传输速度显示，以及编辑器（字体、各类型格式化、保存时格式化、资源是否全部来自应用自身）和权限弹窗（右键入口、改权限、改属主、递归）都走过一遍。这部分是手工脚本，没有放进仓库。
 - 测试时要注意：Syncthing 默认不对局域网地址限速，在 Docker 内网里测速度要同时设置 `limitBandwidthInLan: true`。
 
 ## Security
