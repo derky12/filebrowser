@@ -314,7 +314,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
   - `:<版本>-amd64` / `:<版本>-arm64`：单一架构、固定版本，是上面多架构 tag 的组成部分，也可用于回滚；
   - `:amd64` / `:arm64`：单一架构的滚动 tag（保留，旧的用法仍然有效）；
   - 镜像标签 `org.opencontainers.image.version`、`org.opencontainers.image.revision`（提交）和 `com.filebrowser.fork.changes`（该版本的变更，一行，用 `; ` 分隔）：`docker inspect --format '{{ index .Config.Labels "com.filebrowser.fork.changes" }}' q25459768/filebrowser:<版本>-amd64`。
-  - 想固定某个版本时，在 `.env` 里写 `FB_TAG=<版本>`（两个架构通用，例如 `2.63.23-fork.2`）。
+  - 想固定某个版本时，把 `docker-compose.yml` 里 File Browser 的 `image:` 改成 `q25459768/filebrowser:<版本>`（多架构 tag，两个架构通用，例如 `2.63.23-fork.2`）。
 - **发布流程**（`main` 为 amd64，`arm64` 分支为 arm64）：
   1. 在 `main` 上改好代码，把 `VERSION` 加一，并在 `CHANGES.md` 里写这个版本的变更，提交。
   2. 把 `main` 合并进 `arm64` 分支（两个分支内容相同，不需要再改 compose）。
@@ -330,7 +330,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 1. **首次**：在仓库目录里运行 `scripts/init-env.sh`。它会探测架构（`uname -m`）和 Tailscale 地址（`tailscale ip -4`），生成 Syncthing 密钥，用主机名作设备名，写出 `.env`（权限 600），**不会覆盖已有的 `.env`**。探测不到时可以手动给：`HOST_IP=100.64.0.7 DATA_DIR=/root SYNCTHING_NAME=aus-main-debian scripts/init-env.sh`。也可以 `cp .env.example .env` 自己编辑。缺少必填的变量时 compose 会直接报错并说明。
    - **不要用没加引号的 heredoc（`cat > docker-compose.yml << EOF`）来写 compose 文件或 `.env`**：shell 会在写文件的时候把里面所有的 `${...}` 替换掉。变量没设置时，端口会变成 `":38002:80"`（报 “ports contains an invalid type”），`platform` 和镜像 tag 会被写死成 amd64（在 arm64 机器上就是 `exec /sbin/tini: exec format error`）。需要用 heredoc 时写成 `<< 'EOF'`（引号），或者直接用上面的脚本。
 2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<HOST_IP>:<WEB_PORT>`，默认 `http://100.64.0.7:38002`。
-3. **`.env` 变量**：
+3. **`.env` 变量**（compose 里没有默认值，**全部都要写在 `.env` 里**；`SYNCTHING_API_KEY` 由 `scripts/init-env.sh` 生成，示例文件里没有这一行）：
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
@@ -342,14 +342,13 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 | `SYNCTHING_GUI_PORT` | `38003` | Syncthing 自带网页界面的端口（映射到容器的 8384） |
 | `SYNC_PORT` | `23000` | 同步端口（TCP + UDP），所有机器用同一个值；添加设备时地址没写端口就用它 |
 | `DISCOVERY_PORT` | `23001` | 本地发现端口（UDP，发现已被关闭，所以没有流量） |
-| `SYNCTHING_NAME` | `filebrowser` | 对方看到的设备名，**每台机器要不同** |
+| `SYNCTHING_NAME` | 无 | 对方看到的设备名，**每台机器要不同** |
 | `PUID` / `PGID` | `0` / `0` | 容器运行的用户；服务 root 拥有的文件需要 0 |
-| `FB_TAG` | `latest` | File Browser 镜像 tag，可固定版本，例如 `2.63.23-fork.2` |
 
 4. **数据**：`DATA_DIR` 挂到 `/srv`；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
 5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）；两个服务都写了 `platform`。
 6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
-7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。`hostname must be a string`（或别的变量“必须是字符串”）说明某个变量解析成了空值：`.env` 没有被读到（它必须和 `docker-compose.yml` 在同一个目录，文件名就是 `.env`，或者用 `--env-file` 指定），或者当前 shell 里导出了同名的空变量（shell 优先于 `.env`，用 `unset` 清掉）。用 `docker compose -f docker-compose.yml config --environment | grep -E "ARCH|HOST_IP|SYNCTHING"` 可以看到 compose 实际读到的值。仓库里的 compose 对必填变量写了 `:?` 检查，缺失时会直接说明；手写、省略这些检查的版本只会得到这种难懂的报错。引号、等号两边的空格、Windows 换行不会造成问题。
+7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。`hostname must be a string`（或别的变量“必须是字符串”）说明某个变量解析成了空值：`.env` 没有被读到（它必须和 `docker-compose.yml` 在同一个目录，文件名就是 `.env`，或者用 `--env-file` 指定），或者当前 shell 里导出了同名的空变量（shell 优先于 `.env`，用 `unset` 清掉）。用 `docker compose -f docker-compose.yml config --environment | grep -E "ARCH|HOST_IP|SYNCTHING"` 可以看到 compose 实际读到的值。注意：compose 里的变量**没有默认值，也没有必填检查**，缺失的变量只会得到一条 “Defaulting to a blank string” 的警告，然后变成空字符串（例如 `PUID` 为空时容器会退回到用户 1000，读不了 root 的文件）。所以 `.env` 必须把下面表里的变量都写全。引号、等号两边的空格、Windows 换行不会造成问题。
 8. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明

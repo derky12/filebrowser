@@ -43,6 +43,12 @@ sed -e "s|^ARCH=.*|ARCH=$arch|" \
     -e "s|^SYNCTHING_NAME=.*|SYNCTHING_NAME=$name|" \
     -e "s|^DATA_DIR=.*|DATA_DIR=${DATA_DIR:-/root}|" \
     .env.example > .env
+# The example may leave the key out; the containers do not start without one.
+if ! grep -q '^SYNCTHING_API_KEY=' .env; then
+  # An example without a final newline would get the key glued to its last line.
+  if [ -n "$(tail -c 1 .env)" ]; then printf '\n' >> .env; fi
+  printf 'SYNCTHING_API_KEY=%s\n' "$key" >> .env
+fi
 chmod 600 .env
 
 echo "Wrote .env: ARCH=$arch HOST_IP=$host_ip SYNCTHING_NAME=$name DATA_DIR=${DATA_DIR:-/root}"
