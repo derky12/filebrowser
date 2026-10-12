@@ -29,6 +29,11 @@ services:
       - /root:/srv
       - ./config:/config
       - ./database:/database
+    # /root is served, so hide ~/.ssh: an empty read-only tmpfs covers it inside
+    # the container (the real directory on the host is not touched). Add more
+    # lines like this for other secrets, e.g. /srv/.gnupg.
+    tmpfs:
+      - /srv/.ssh:ro,size=4k,mode=0555
 
   # Does the actual syncing. Its web UI is not published: File Browser is the
   # UI. Only the sync port is exposed, on the Tailscale address.
@@ -52,3 +57,8 @@ services:
     volumes:
       - /root:/srv # must be the same mount as File Browser
       - ./syncthing-config:/var/syncthing/config
+    # /root is served, so hide ~/.ssh: an empty read-only tmpfs covers it inside
+    # the container (the real directory on the host is not touched). Add more
+    # lines like this for other secrets, e.g. /srv/.gnupg.
+    tmpfs:
+      - /srv/.ssh:ro,size=4k,mode=0555

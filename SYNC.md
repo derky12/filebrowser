@@ -32,6 +32,19 @@ configurable; the container keeps using 22000 and 21027. Restart with
 File Browser and Syncthing must see the files at the same path (both mount the
 files at `/srv`), because Syncthing is given the real path of the folder.
 
+### Serving `/root` safely
+
+The compose file mounts `/root` at `/srv`. The containers never change the owner
+or permissions of the mounted directory (checked for `PUID=0` and `PUID=1000`),
+so SSH keeps working. Do not `chown`/`chmod` your home directory to "fix"
+permission errors: SSH rejects a home or `.ssh` directory with the wrong owner
+or group/world write permission. Keep `PUID=0`/`PGID=0` instead.
+
+`~/.ssh` is hidden from both containers with an empty read-only `tmpfs` mounted
+on `/srv/.ssh`, so File Browser cannot read your private keys and a synced
+folder cannot overwrite `authorized_keys`. The real directory on the host is
+untouched. Add another `tmpfs` line for any other secret directory.
+
 ## Use
 
 1. **Pair the devices (once).** On machine A open Settings → Sync, copy
