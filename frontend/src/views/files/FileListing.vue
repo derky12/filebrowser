@@ -55,6 +55,18 @@
             @action="openExtract"
           />
           <action
+            v-if="headerButtons.batchRename"
+            icon="drive_file_rename_outline"
+            :label="t('batch.rename')"
+            @action="openBatchRename"
+          />
+          <action
+            v-if="headerButtons.duplicate"
+            icon="file_copy"
+            :label="t('batch.duplicate')"
+            @action="duplicateSelected"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -176,6 +188,18 @@
         icon="unarchive"
         :label="t('archive.extract')"
         @action="openExtract"
+      />
+      <action
+        v-if="headerButtons.batchRename"
+        icon="drive_file_rename_outline"
+        :label="t('batch.rename')"
+        @action="openBatchRename"
+      />
+      <action
+        v-if="headerButtons.duplicate"
+        icon="file_copy"
+        :label="t('batch.duplicate')"
+        @action="duplicateSelected"
       />
       <action
         v-if="headerButtons.copy"
@@ -391,6 +415,18 @@
             @action="openExtract"
           />
           <action
+            v-if="headerButtons.batchRename"
+            icon="drive_file_rename_outline"
+            :label="t('batch.rename')"
+            @action="openBatchRename"
+          />
+          <action
+            v-if="headerButtons.duplicate"
+            icon="file_copy"
+            :label="t('batch.duplicate')"
+            @action="duplicateSelected"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -501,6 +537,7 @@ const isContextMenuVisible = ref<boolean>(false);
 const contextMenuPos = ref<{ x: number; y: number }>({ x: 0, y: 0 });
 
 const $showError = inject<IToastError>("$showError")!;
+const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
 
 const clipboardStore = useClipboardStore();
 const authStore = useAuthStore();
@@ -623,6 +660,8 @@ const headerButtons = computed(() => {
       !!fileStore.req?.items[fileStore.selected[0]] &&
       !fileStore.req.items[fileStore.selected[0]].isDir &&
       isArchiveName(fileStore.req.items[fileStore.selected[0]].name),
+    batchRename: fileStore.selectedCount > 1 && authStore.user?.perm.rename,
+    duplicate: fileStore.selectedCount > 0 && authStore.user?.perm.create,
     permissions: fileStore.selectedCount > 0 && authStore.user?.perm.modify,
     // For the selected folder, or the folder being viewed.
     diskUsage:
@@ -812,6 +851,44 @@ const openSync = (): void => {
     prompt: "syncFolder",
     props: { path: urlToFavorite(item.url) },
   });
+};
+
+const openBatchRename = (): void => {
+  const items = fileStore.selected
+    .map((index) => fileStore.req?.items[index])
+    .filter((item): item is ResourceItem => !!item)
+    .map((item) => ({ name: item.name, isDir: item.isDir }));
+  if (items.length < 2) return;
+
+  const folderUrl = route.path.endsWith("/") ? route.path : route.path + "/";
+  layoutStore.showHover({
+    prompt: "batchRename",
+    props: { items, folderUrl },
+  });
+};
+
+// A copy next to the original; a name already taken gets "(1)", "(2)"...
+const duplicateSelected = async (): Promise<void> => {
+  const folderUrl = route.path.endsWith("/") ? route.path : route.path + "/";
+  const copies = fileStore.selected
+    .map((index) => fileStore.req?.items[index])
+    .filter((item): item is ResourceItem => !!item)
+    .map((item) => ({
+      from: item.url,
+      to: folderUrl + encodeURIComponent(item.name),
+      name: item.name,
+      rename: true,
+      overwrite: false,
+    }));
+  if (copies.length === 0) return;
+
+  try {
+    await api.copy(copies, false, true);
+    fileStore.reload = true;
+    $showSuccess(t("batch.duplicated", { n: copies.length }));
+  } catch (e) {
+    $showError(e as Error);
+  }
 };
 
 const openCompress = (): void => {

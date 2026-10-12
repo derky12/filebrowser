@@ -35,6 +35,7 @@ import SyncIgnores from "./SyncIgnores.vue";
 import Permissions from "./Permissions.vue";
 import Compress from "./Compress.vue";
 import Extract from "./Extract.vue";
+import BatchRename from "./BatchRename.vue";
 
 const layoutStore = useLayoutStore();
 
@@ -64,6 +65,7 @@ const components = new Map<string, any>([
   ["permissions", Permissions],
   ["compress", Compress],
   ["extract", Extract],
+  ["batchRename", BatchRename],
 ]);
 
 const modal = computed(() => {
