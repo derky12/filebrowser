@@ -409,6 +409,7 @@ import { useLayoutStore } from "@/stores/layout";
 
 import { users, files as api } from "@/api";
 import { enableExec, enableSync } from "@/utils/constants";
+import { useSyncStore } from "@/stores/sync";
 import { urlToFavorite } from "@/utils/favorites";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
@@ -582,7 +583,12 @@ watch(req, () => {
   });
 });
 
+const syncStore = useSyncStore();
+
 onMounted(() => {
+  // Folders show a badge when they are synced.
+  if (enableSync && authStore.user?.perm.admin) syncStore.start();
+
   // Check the columns size for the first time.
   columnsResize();
 
@@ -608,6 +614,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  syncStore.stop();
+
   // Remove event listeners before destroying this page.
   window.removeEventListener("keydown", keyEvent);
   window.removeEventListener("scroll", scrollEvent);

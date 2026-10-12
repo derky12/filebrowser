@@ -348,3 +348,32 @@ html[dir="rtl"] #listing {
     opacity: 0.8;
   }
 }
+
+#listing .item .sync-badge {
+  position: absolute;
+  top: 0.15em;
+  left: 0.15em;
+  z-index: 1;
+  margin: 0;
+  padding: 0.05em;
+  border-radius: 50%;
+  background: var(--surfacePrimary);
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+#listing .item .sync-badge.ok {
+  color: #43a047;
+}
+
+#listing .item .sync-badge.busy {
+  color: #1e88e5;
+}
+
+#listing .item .sync-badge.off {
+  color: #9e9e9e;
+}
+
+#listing .item .sync-badge.err {
+  color: #e53935;
+}

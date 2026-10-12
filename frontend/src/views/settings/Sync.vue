@@ -150,6 +150,7 @@
                 <th>{{ t("sync.state") }}</th>
                 <th></th>
                 <th></th>
+                <th></th>
               </tr>
               <tr v-for="f in status.folders" :key="f.id">
                 <td>
@@ -164,6 +165,16 @@
                   <span :class="['sync-state', stateClass(f)]">{{
                     stateLabel(f)
                   }}</span>
+                </td>
+                <td class="small">
+                  <button
+                    class="action"
+                    :title="t('sync.ignoreRules')"
+                    :aria-label="t('sync.ignoreRules')"
+                    @click="editIgnores(f)"
+                  >
+                    <i class="material-icons">filter_list</i>
+                  </button>
                 </td>
                 <td class="small">
                   <button
@@ -194,6 +205,93 @@
             <i class="material-icons">sync_disabled</i>
             <span>{{ t("sync.noFolders") }}</span>
           </h2>
+        </div>
+
+        <div class="card" v-if="conflicts.length > 0">
+          <div class="card-title">
+            <h2>{{ t("sync.conflicts") }}</h2>
+          </div>
+          <div class="card-content">
+            <p>{{ t("sync.conflictsHelp") }}</p>
+          </div>
+          <div class="card-content full">
+            <table>
+              <tr>
+                <th>{{ t("settings.path") }}</th>
+                <th>{{ t("sync.versions") }}</th>
+                <th></th>
+              </tr>
+              <tr v-for="c in conflicts" :key="c.path">
+                <td class="conflict-path">
+                  <router-link :to="'/files' + dirOf(c.original)">{{
+                    c.original
+                  }}</router-link>
+                </td>
+                <td>
+                  <small>
+                    {{ t("sync.yourVersion") }}:
+                    {{
+                      c.originalExists
+                        ? filesize(c.originalSize) +
+                          ", " +
+                          dayjs(c.originalModified).fromNow()
+                        : "—"
+                    }}<br />
+                    {{ t("sync.otherVersion") }}: {{ filesize(c.size) }},
+                    {{ dayjs(c.conflictedAt).fromNow() }}
+                  </small>
+                </td>
+                <td class="conflict-actions">
+                  <button
+                    class="button button--flat"
+                    @click="resolveConflict(c, 'original')"
+                  >
+                    {{ t("sync.keepYours") }}
+                  </button>
+                  <button
+                    class="button button--flat"
+                    @click="resolveConflict(c, 'conflict')"
+                  >
+                    {{ t("sync.keepOther") }}
+                  </button>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" v-if="limits">
+          <div class="card-title">
+            <h2>{{ t("sync.bandwidth") }}</h2>
+          </div>
+          <div class="card-content">
+            <p>{{ t("sync.bandwidthHelp") }}</p>
+            <label class="field">
+              <span>{{ t("sync.downLimit") }}</span>
+              <input
+                class="input input--block"
+                type="number"
+                min="0"
+                v-model.number="limits.maxRecvKbps"
+              />
+            </label>
+            <label class="field">
+              <span>{{ t("sync.upLimit") }}</span>
+              <input
+                class="input input--block"
+                type="number"
+                min="0"
+                v-model.number="limits.maxSendKbps"
+              />
+            </label>
+            <label class="field">
+              <input type="checkbox" v-model="limits.limitBandwidthInLan" />
+              {{ t("sync.limitLan") }}
+            </label>
+            <button class="button" @click="saveLimits">
+              {{ t("buttons.update") }}
+            </button>
+          </div>
         </div>
 
         <div class="card">
@@ -266,8 +364,11 @@ import { useI18n } from "vue-i18n";
 import { sync as api } from "@/api";
 import { StatusError } from "@/api/utils";
 import { copy } from "@/utils/clipboard";
+import dayjs from "dayjs";
 import { filesize } from "@/utils";
 import { transferRate } from "@/utils/syncRate";
+import { folderKind, minCompletion } from "@/utils/syncState";
+import { useLayoutStore } from "@/stores/layout";
 import type { TransferRate, TransferSample } from "@/utils/syncRate";
 import Errors from "@/views/Errors.vue";
 import SyncDeviceForm from "@/components/settings/SyncDeviceForm.vue";
@@ -277,6 +378,10 @@ const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
 const { t } = useI18n();
 
 const status = ref<SyncStatus | null>(null);
+const conflicts = ref<SyncConflict[]>([]);
+const limits = ref<SyncLimits | null>(null);
+const layoutStore = useLayoutStore();
+let polls = 0;
 const error = ref<StatusError | null>(null);
 const acceptingDevice = ref<string | null>(null);
 const acceptingFolder = ref<string | null>(null);
@@ -330,9 +435,26 @@ const totalRate = computed(() => {
   return { down, up };
 });
 
-onMounted(() => {
+// Looking for conflicts walks the synced folders, so it runs less often.
+const refreshConflicts = async () => {
+  try {
+    conflicts.value = await api.conflicts();
+  } catch {
+    // Not critical: the rest of the page still works.
+  }
+};
+
+onMounted(async () => {
   refresh();
-  timer = window.setInterval(refresh, 4000);
+  refreshConflicts();
+  api
+    .limits()
+    .then((l) => (limits.value = l))
+    .catch(() => {});
+  timer = window.setInterval(() => {
+    refresh();
+    if (++polls % 5 === 0) refreshConflicts();
+  }, 4000);
 });
 onBeforeUnmount(() => window.clearInterval(timer));
 
@@ -373,19 +495,7 @@ const remoteNames = (folder: SyncFolder) =>
     )
     .join(", ");
 
-const minCompletion = (folder: SyncFolder) =>
-  folder.remotes.length === 0
-    ? 100
-    : Math.min(...folder.remotes.map((r) => r.completion));
-
-const stateClass = (folder: SyncFolder) => {
-  if (folder.error) return "err";
-  if (folder.paused) return "off";
-  if (folder.remotes.length > 0 && folder.remotes.every((r) => !r.connected))
-    return "off";
-  if (folder.state === "idle" && minCompletion(folder) >= 100) return "ok";
-  return "busy";
-};
+const stateClass = folderKind;
 
 const remaining = (bytes: number, files: number) =>
   bytes > 0
@@ -410,6 +520,42 @@ const stateLabel = (folder: SyncFolder) => {
   if (folder.state === "scanning") return t("sync.scanning");
   return t("sync.syncing") + remaining(folder.needBytes, folder.needFiles);
 };
+
+const dirOf = (path: string) => path.replace(/\/[^/]*$/, "") + "/";
+
+const resolveConflict = async (
+  c: SyncConflict,
+  keep: "conflict" | "original"
+) => {
+  try {
+    await api.resolveConflict(c.path, keep);
+    $showSuccess(t("sync.conflictResolved"));
+  } catch (e) {
+    $showError(e as Error);
+  }
+  await refreshConflicts();
+};
+
+const saveLimits = async () => {
+  if (!limits.value) return;
+
+  try {
+    await api.setLimits({
+      maxRecvKbps: limits.value.maxRecvKbps || 0,
+      maxSendKbps: limits.value.maxSendKbps || 0,
+      limitBandwidthInLan: limits.value.limitBandwidthInLan,
+    });
+    $showSuccess(t("sync.limitsSaved"));
+  } catch (e) {
+    $showError(e as Error);
+  }
+};
+
+const editIgnores = (folder: SyncFolder) =>
+  layoutStore.showHover({
+    prompt: "syncIgnores",
+    props: { id: folder.id, path: folder.path },
+  });
 
 const togglePause = (folder: SyncFolder) =>
   run(() => api.setPaused(folder.id, !folder.paused));
@@ -504,6 +650,14 @@ const acceptFolder = async (p: SyncPendingFolder) => {
   display: block;
   margin-top: 0.2em;
   opacity: 0.7;
+}
+
+.conflict-path {
+  word-break: break-all;
+}
+
+.conflict-actions {
+  white-space: nowrap;
 }
 
 .sync-summary {

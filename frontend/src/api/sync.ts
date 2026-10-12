@@ -64,3 +64,38 @@ export async function acceptFolder(accept: {
 }) {
   await fetchURL("/api/sync/pending/folders/accept", json(accept));
 }
+
+export function conflicts() {
+  return fetchJSON<SyncConflict[]>("/api/sync/conflicts");
+}
+
+export function resolveConflict(path: string, keep: "conflict" | "original") {
+  return fetchJSON<{ path: string }>(
+    "/api/sync/conflicts/resolve",
+    json({ path, keep })
+  );
+}
+
+export function ignores(id: string) {
+  return fetchJSON<{ lines: string[] }>(
+    `/api/sync/folders/${encodeURIComponent(id)}/ignores`
+  );
+}
+
+export async function setIgnores(id: string, lines: string[]) {
+  await fetchURL(`/api/sync/folders/${encodeURIComponent(id)}/ignores`, {
+    method: "PUT",
+    body: JSON.stringify({ lines }),
+  });
+}
+
+export function limits() {
+  return fetchJSON<SyncLimits>("/api/sync/limits");
+}
+
+export async function setLimits(limits: SyncLimits) {
+  await fetchURL("/api/sync/limits", {
+    method: "PUT",
+    body: JSON.stringify(limits),
+  });
+}

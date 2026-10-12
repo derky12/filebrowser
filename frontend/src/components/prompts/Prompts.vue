@@ -31,6 +31,7 @@ import ResolveConflict from "./ResolveConflict.vue";
 import CurrentPassword from "./CurrentPassword.vue";
 import FolderColor from "./FolderColor.vue";
 import SyncFolder from "./SyncFolder.vue";
+import SyncIgnores from "./SyncIgnores.vue";
 import Permissions from "./Permissions.vue";
 
 const layoutStore = useLayoutStore();
@@ -57,6 +58,7 @@ const components = new Map<string, any>([
   ["current-password", CurrentPassword],
   ["folderColor", FolderColor],
   ["syncFolder", SyncFolder],
+  ["syncIgnores", SyncIgnores],
   ["permissions", Permissions],
 ]);
 

@@ -33,6 +33,13 @@
       <i v-else class="material-icons"></i>
     </div>
 
+    <i
+      v-if="syncKind"
+      class="material-icons sync-badge"
+      :class="syncKind"
+      :title="$t('sync.badge')"
+      >sync</i
+    >
     <button
       v-if="showStar"
       class="folder-color-button"
@@ -85,6 +92,7 @@ import dayjs from "dayjs";
 import { files as api } from "@/api";
 import { dropSelectedInto } from "@/utils/drop";
 import { urlToFavorite } from "@/utils/favorites";
+import { useSyncStore } from "@/stores/sync";
 import { computed, inject, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -139,6 +147,10 @@ const canDrop = computed(() => {
 
 const favoritePath = computed(() => urlToFavorite(props.url));
 const showStar = computed(() => props.isDir && !props.readOnly);
+const syncStore = useSyncStore();
+const syncKind = computed(() =>
+  showStar.value ? syncStore.kinds[favoritePath.value] : undefined
+);
 const isFavorite = computed(() => authStore.isFavorite(favoritePath.value));
 
 const folderColor = computed(() =>
