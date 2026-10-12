@@ -68,7 +68,7 @@ func NewHandler(
 
 	api.PathPrefix("/resources/recursive").Handler(monkey(resourceGetRecursiveHandler, "/api/resources/recursive")).Methods("GET")
 	api.PathPrefix("/resources").Handler(monkey(resourceGetHandler, "/api/resources")).Methods("GET")
-	api.PathPrefix("/resources").Handler(monkey(audited(auditFixed("delete"), resourceDeleteHandler(fileCache)), "/api/resources")).Methods("DELETE")
+	api.PathPrefix("/resources").Handler(monkey(resourceDeleteHandler(fileCache), "/api/resources")).Methods("DELETE")
 	api.PathPrefix("/resources").Handler(monkey(audited(auditPost, resourcePostHandler(fileCache)), "/api/resources")).Methods("POST")
 	api.PathPrefix("/resources").Handler(monkey(audited(auditFixed("save"), resourcePutHandler), "/api/resources")).Methods("PUT")
 	api.PathPrefix("/resources").Handler(monkey(audited(auditPatch, resourcePatchHandler(fileCache)), "/api/resources")).Methods("PATCH")
@@ -89,6 +89,11 @@ func NewHandler(
 	api.PathPrefix("/share").Handler(monkey(shareGetsHandler, "/api/share")).Methods("GET")
 	api.PathPrefix("/share").Handler(monkey(audited(auditFixed("share"), sharePostHandler), "/api/share")).Methods("POST")
 	api.PathPrefix("/share").Handler(monkey(shareDeleteHandler, "/api/share")).Methods("DELETE")
+
+	api.Handle("/trash", monkey(trashListHandler, "")).Methods("GET")
+	api.Handle("/trash", monkey(trashEmptyHandler, "")).Methods("DELETE")
+	api.Handle("/trash/{id}/restore", monkey(trashRestoreHandler, "")).Methods("POST")
+	api.Handle("/trash/{id}", monkey(trashDeleteHandler, "")).Methods("DELETE")
 
 	api.Handle("/activity", monkey(activityGetHandler, "")).Methods("GET")
 

@@ -49,6 +49,7 @@ func handleWithStaticData(w http.ResponseWriter, _ *http.Request, d *data, fSys 
 		"ResizePreview":         d.server.ResizePreview,
 		"EnableExec":            d.server.EnableExec,
 		"EnableSync":            d.server.SyncthingURL != "",
+		"EnableTrash":           d.settings.TrashConfig().Enabled,
 		"TusSettings":           d.settings.Tus,
 		"HideLoginButton":       d.settings.HideLoginButton,
 	}

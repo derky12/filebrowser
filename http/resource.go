@@ -86,7 +86,7 @@ var resourceGetHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 })
 
 func resourceDeleteHandler(fileCache FileCache) handleFunc {
-	return withUser(func(_ http.ResponseWriter, r *http.Request, d *data) (int, error) {
+	return withUser(func(w http.ResponseWriter, r *http.Request, d *data) (int, error) {
 		if r.URL.Path == "/" || !d.user.Perm.Delete {
 			return http.StatusForbidden, nil
 		}
@@ -118,12 +118,40 @@ func resourceDeleteHandler(fileCache FileCache) handleFunc {
 			return errToStatus(err), err
 		}
 
+		// Move to the trash unless it is switched off, the user asked for a
+		// permanent delete, the item is already in the trash, or it is too big
+		// for the trash to hold.
+		trashed := false
+		useTrash := d.settings.TrashConfig().Enabled && r.URL.Query().Get("permanent") != "true" && !isInTrash(r.URL.Path)
 		err = d.RunHook(func() error {
+			if useTrash {
+				ok, moveErr := moveToTrash(d, r.URL.Path)
+				if moveErr != nil {
+					return moveErr
+				}
+				if ok {
+					trashed = true
+					return nil
+				}
+			}
+
 			return d.user.Fs.RemoveAll(r.URL.Path)
 		}, "delete", r.URL.Path, "", d.user)
 
 		if err != nil {
 			return errToStatus(err), err
+		}
+
+		if trashed {
+			w.Header().Set("X-Trash", "trashed")
+			d.audit(r, "trash", slashClean(r.URL.Path), "", "")
+		} else {
+			w.Header().Set("X-Trash", "deleted")
+			detail := ""
+			if useTrash {
+				detail = "too large for the trash"
+			}
+			d.audit(r, "delete", slashClean(r.URL.Path), "", detail)
 		}
 
 		return http.StatusNoContent, nil

@@ -38,6 +38,27 @@ type Settings struct {
 	FileMode              fs.FileMode         `json:"fileMode"`
 	DirMode               fs.FileMode         `json:"dirMode"`
 	HideDotfiles          bool                `json:"hideDotfiles"`
+	// Trash is nil until it is configured; TrashConfig then gives the defaults.
+	Trash *Trash `json:"trash,omitempty"`
+}
+
+// Trash configures the recycle bin that deleted files are moved to.
+type Trash struct {
+	Enabled  bool  `json:"enabled"`
+	MaxBytes int64 `json:"maxBytes"` // total size kept, 0 is unlimited
+	Days     int   `json:"days"`     // how long items are kept, 0 until space is needed
+}
+
+// DefaultTrash is used until the trash is configured.
+var DefaultTrash = Trash{Enabled: true, MaxBytes: 10 << 30, Days: 30}
+
+// TrashConfig returns the configured trash, or the defaults.
+func (s *Settings) TrashConfig() Trash {
+	if s.Trash == nil {
+		return DefaultTrash
+	}
+
+	return *s.Trash
 }
 
 // GetRules implements rules.Provider.
