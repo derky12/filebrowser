@@ -280,6 +280,15 @@
     "permanent": "Delete permanently (skip the trash)",
     "tooLarge": "Too large for the trash: deleted permanently."
   },
+  "du": {
+    "title": "Disk usage",
+    "openInFiles": "Open in files",
+    "refresh": "Measure again",
+    "measuring": "Measuring…",
+    "files": "{n} files",
+    "partial": "Some folders are too big to measure in time; their sizes are at least what is shown.",
+    "empty": "This folder is empty."
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",

@@ -4,6 +4,7 @@ import Login from "@/views/Login.vue";
 import Layout from "@/views/Layout.vue";
 import Files from "@/views/Files.vue";
 import Trash from "@/views/Trash.vue";
+import DiskUsage from "@/views/DiskUsage.vue";
 import Share from "@/views/Share.vue";
 import Users from "@/views/settings/Users.vue";
 import User from "@/views/settings/User.vue";
@@ -25,6 +26,7 @@ const titles = {
   Share: "buttons.share",
   Files: "files.files",
   Trash: "trash.title",
+  DiskUsage: "du.title",
   Settings: "sidebar.settings",
   ProfileSettings: "settings.profileSettings",
   Shares: "settings.shareManagement",
@@ -66,6 +68,20 @@ const routes = [
         path: ":path*",
         name: "Files",
         component: Files,
+      },
+    ],
+  },
+  {
+    path: "/du",
+    component: Layout,
+    meta: {
+      requiresAuth: true,
+    },
+    children: [
+      {
+        path: ":path*",
+        name: "DiskUsage",
+        component: DiskUsage,
       },
     ],
   },

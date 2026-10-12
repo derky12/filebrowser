@@ -37,6 +37,12 @@
             @action="openPermissions"
           />
           <action
+            v-if="headerButtons.diskUsage"
+            icon="donut_large"
+            :label="t('du.title')"
+            @action="openDiskUsage"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -140,6 +146,12 @@
         icon="lock"
         :label="t('perms.title')"
         @action="openPermissions"
+      />
+      <action
+        v-if="headerButtons.diskUsage"
+        icon="donut_large"
+        :label="t('du.title')"
+        @action="openDiskUsage"
       />
       <action
         v-if="headerButtons.copy"
@@ -337,6 +349,12 @@
             @action="openPermissions"
           />
           <action
+            v-if="headerButtons.diskUsage"
+            icon="donut_large"
+            :label="t('du.title')"
+            @action="openDiskUsage"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -411,6 +429,7 @@ import { users, files as api } from "@/api";
 import { enableExec, enableSync } from "@/utils/constants";
 import { useSyncStore } from "@/stores/sync";
 import { urlToFavorite } from "@/utils/favorites";
+import { encodePath } from "@/utils/url";
 import * as upload from "@/utils/upload";
 import buttons from "@/utils/buttons";
 import css from "@/utils/css";
@@ -431,7 +450,7 @@ import {
   ref,
   watch,
 } from "vue";
-import { useRoute, onBeforeRouteUpdate } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteUpdate } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { removePrefix } from "@/api/utils";
@@ -454,6 +473,7 @@ const layoutStore = useLayoutStore();
 const { req } = storeToRefs(fileStore);
 
 const route = useRoute();
+const router = useRouter();
 onBeforeRouteUpdate(() => {
   hideContextMenu();
 });
@@ -557,6 +577,11 @@ const headerButtons = computed(() => {
       fileStore.selectedCount === 1 &&
       !!fileStore.req?.items[fileStore.selected[0]]?.isDir,
     permissions: fileStore.selectedCount > 0 && authStore.user?.perm.modify,
+    // For the selected folder, or the folder being viewed.
+    diskUsage:
+      fileStore.selectedCount === 0 ||
+      (fileStore.selectedCount === 1 &&
+        !!fileStore.req?.items[fileStore.selected[0]]?.isDir),
     cut: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     paste: clipboardStore.items.length > 0 && authStore.user?.perm.create,
   };
@@ -740,6 +765,15 @@ const openSync = (): void => {
     prompt: "syncFolder",
     props: { path: urlToFavorite(item.url) },
   });
+};
+
+const openDiskUsage = (): void => {
+  const selected =
+    fileStore.selectedCount === 1
+      ? fileStore.req?.items[fileStore.selected[0]]
+      : undefined;
+  const path = urlToFavorite(selected ? selected.url : route.path);
+  router.push(`/du${encodePath(path === "/" ? "" : path)}/`);
 };
 
 const openPermissions = (): void => {
