@@ -359,6 +359,54 @@
     "confirmDelete": "Delete {n} items?",
     "deleted": "Deleted {n} items"
   },
+  "webdav": {
+    "title": "WebDAV",
+    "shareTitle": "Share as WebDAV",
+    "intro": "Folders shared here can be opened from other devices with any WebDAV client (Finder, Windows Explorer, file apps, rclone). Share a folder from the file list: right click it and choose Share as WebDAV.",
+    "address": "Address",
+    "userName": "User name",
+    "passwordNote": "The password is WEBDAV_PASSWORD in the .env of this server.",
+    "shares": "Shared folders",
+    "name": "Share name",
+    "nameHelp": "Becomes part of the address. Letters, digits, spaces, dots, dashes and underscores.",
+    "mode": "Access",
+    "readOnly": "Read only: clients can look at and download the files (recommended)",
+    "readWrite": "Read and write: clients can also add, change and delete files",
+    "readOnlyShort": "Read only",
+    "readWriteShort": "Read and write",
+    "writeWarning": "Files deleted over WebDAV are gone for good; they do not go to the trash.",
+    "share": "Share",
+    "created": "The folder is shared. Open this address in a WebDAV client:",
+    "login": "Log in with the user name {user} and the password from the .env of this server.",
+    "copyUrl": "Copy the address",
+    "stop": "Stop sharing (the files stay)",
+    "confirmStop": "Stop sharing {name}? The files are not touched.",
+    "modeSaved": "Access changed",
+    "missing": "The folder is gone",
+    "none": "Nothing is shared yet. Right click a folder in the file list and choose Share as WebDAV.",
+    "howTo": "How to connect",
+    "helpIntro": "Use the address above and the user name {user}. The password is the one in .env.",
+    "help": {
+      "mac": {
+        "title": "macOS Finder",
+        "text": "Go > Connect to Server (Cmd+K), paste {url} and sign in."
+      },
+      "windows": {
+        "title": "Windows",
+        "text": "Explorer > This PC > Map network drive, or the command below. Windows only accepts the password over HTTPS unless you change a registry setting, so put an HTTPS proxy in front (see the README).",
+        "cmd": "net use Z: {url} /user:{user} *"
+      },
+      "linux": {
+        "title": "Linux",
+        "text": "GNOME Files: Other Locations, enter the address with davs:// instead of https://. On the command line:",
+        "cmd": "rclone mount :webdav: ~/dav --webdav-url {url} --webdav-user {user} --webdav-pass $(rclone obscure PASSWORD) --webdav-vendor other"
+      },
+      "phone": {
+        "title": "iOS and Android",
+        "text": "iOS: Files > Connect to Server, enter {url}. Android: use a WebDAV capable file manager such as Solid Explorer, CX File Explorer or FolderSync."
+      }
+    }
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",

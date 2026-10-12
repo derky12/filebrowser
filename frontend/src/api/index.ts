@@ -11,6 +11,7 @@ import * as activity from "./activity";
 import * as trash from "./trash";
 import * as du from "./du";
 import * as archive from "./archive";
+import * as webdav from "./webdav";
 
 export {
   files,
@@ -26,4 +27,5 @@ export {
   trash,
   du,
   archive,
+  webdav,
 };

@@ -26,8 +26,22 @@ services:
       - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY}
       - FB_SYNCTHING_PRIVATE_NETWORK=true
       - FB_SYNCTHING_PORT=${SYNC_PORT}
+      # WebDAV (optional, off unless WEBDAV_ENABLED=true): the container always
+      # listens on 8090; the published port is WEBDAV_PORT below.
+      - FB_WEBDAV_ENABLED=${WEBDAV_ENABLED:-false}
+      - FB_WEBDAV_PORT=8090
+      - FB_WEBDAV_HOST_PORT=${WEBDAV_PORT:-38004}
+      - FB_WEBDAV_USER=${WEBDAV_USER:-webdav}
+      - FB_WEBDAV_PASSWORD=${WEBDAV_PASSWORD:-}
+      - FB_WEBDAV_PREFIX=${WEBDAV_PREFIX:-}
+      - FB_WEBDAV_PUBLIC_URL=${WEBDAV_PUBLIC_URL:-}
+      - FB_WEBDAV_BEHIND_PROXY=${WEBDAV_BEHIND_PROXY:-false}
     ports:
       - "${HOST_IP}:${WEB_PORT}:80"
+      # WebDAV. Without WEBDAV_BIND_IP it is only reachable from this machine
+      # (127.0.0.1); set it to HOST_IP to reach it over Tailscale, or keep it
+      # local when a proxy on this machine does HTTPS (see the README).
+      - "${WEBDAV_BIND_IP:-127.0.0.1}:${WEBDAV_PORT:-38004}:8090"
     volumes:
       - ${DATA_DIR}:/srv
       - ./config:/config

@@ -20,6 +20,13 @@
               {{ t("sync.title") }}
             </li></router-link
           >
+          <router-link
+            to="/settings/webdav"
+            v-if="user?.perm.admin && enableWebdav"
+            ><li :class="{ active: $route.path === '/settings/webdav' }">
+              {{ t("webdav.title") }}
+            </li></router-link
+          >
           <router-link to="/settings/activity" v-if="user?.perm.admin"
             ><li :class="{ active: $route.path === '/settings/activity' }">
               {{ t("activity.title") }}
@@ -83,7 +90,7 @@ import { useLayoutStore } from "@/stores/layout";
 import HeaderBar from "@/components/header/HeaderBar.vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { enableSync } from "@/utils/constants";
+import { enableSync, enableWebdav } from "@/utils/constants";
 
 const { t } = useI18n();
 

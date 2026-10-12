@@ -42,6 +42,8 @@ sed -e "s|^ARCH=.*|ARCH=$arch|" \
     -e "s|^SYNCTHING_API_KEY=.*|SYNCTHING_API_KEY=$key|" \
     -e "s|^SYNCTHING_NAME=.*|SYNCTHING_NAME=$name|" \
     -e "s|^DATA_DIR=.*|DATA_DIR=${DATA_DIR:-/root}|" \
+    -e "s|^WEBDAV_BIND_IP=.*|WEBDAV_BIND_IP=$host_ip|" \
+    -e "s|^WEBDAV_PASSWORD=.*|WEBDAV_PASSWORD=$(openssl rand -hex 12)|" \
     .env.example > .env
 # The example may leave the key out; the containers do not start without one.
 if ! grep -q '^SYNCTHING_API_KEY=' .env; then
@@ -52,4 +54,5 @@ fi
 chmod 600 .env
 
 echo "Wrote .env: ARCH=$arch HOST_IP=$host_ip SYNCTHING_NAME=$name DATA_DIR=${DATA_DIR:-/root}"
+echo "WebDAV is off; to use it set WEBDAV_ENABLED=true in .env (a password was made for you)."
 echo "Start with: docker compose -f docker-compose.yml up -d"

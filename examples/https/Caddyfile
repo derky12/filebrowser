@@ -1,0 +1,20 @@
+# Caddy in front of the WebDAV server and the web interface.
+#
+# Replace the names with yours. For a name under your tailnet (*.ts.net), Caddy
+# gets a valid certificate from Tailscale on its own, as long as it can reach
+# the tailscaled socket (see docker-compose.caddy.yml). For your own domain
+# Caddy uses Let's Encrypt, which needs the name to be reachable from the
+# internet or a DNS challenge; a private Tailscale address (100.x.y.z) cannot
+# get a Let's Encrypt certificate.
+#
+# Caddy keeps the Host header and adds X-Forwarded-For (with the client address
+# as the last entry), which is what the WebDAV server needs; nothing else to
+# configure for MOVE/COPY or for large uploads.
+
+dav.example.ts.net {
+	reverse_proxy filebrowser:8090
+}
+
+files.example.ts.net {
+	reverse_proxy filebrowser:80
+}

@@ -572,6 +572,23 @@ func TestWebDAVShareManagement(t *testing.T) {
 	if !info.Enabled || info.User != davTestUser || info.BaseURL != "http://100.64.0.7:38004" || len(info.Shares) != 1 || info.Shares[0].ReadOnly {
 		t.Fatalf("info: %+v", info)
 	}
+	// A folder replaced by a symlink is reported as gone, like the server treats it.
+	real := filepath.Join(a.scope, "Photos 2024")
+	if err := os.RemoveAll(real); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(a.root, real); err == nil {
+		rec = a.call(webdavGetHandler, davAdminPerm, http.MethodGet, "/api/webdav", "", nil)
+		_ = json.Unmarshal(rec.Body.Bytes(), &info)
+		if len(info.Shares) != 1 || info.Shares[0].Available {
+			t.Fatalf("a share behind a symlink must not be available: %+v", info.Shares)
+		}
+		_ = os.Remove(real)
+	}
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
 	rec = a.call(webdavShareDeleteHandler, davAdminPerm, http.MethodDelete, "/x", "", map[string]string{"name": "Photos 2024"})
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: status=%d", rec.Code)

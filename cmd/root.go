@@ -96,7 +96,7 @@ func init() {
 	flags.String("syncthingUrl", "", "base URL of a Syncthing instance to enable folder syncing (e.g. http://syncthing:8384)")
 	flags.String("syncthingApiKey", "", "API key of the Syncthing instance")
 	flags.String("syncthingPort", "22000", "sync port of the other Syncthing devices, used when a device address has no port")
-	flags.Bool("webdav", false, "serve folders shared from the web interface over WebDAV (needs --webdavPassword)")
+	flags.Bool("webdavEnabled", false, "serve folders shared from the web interface over WebDAV (needs --webdavPassword)")
 	flags.String("webdavPort", "8090", "port the WebDAV server listens on")
 	flags.String("webdavHostPort", "", "port the WebDAV server is published on, only used to show URLs")
 	flags.String("webdavUser", "webdav", "user name of the WebDAV server")
@@ -405,7 +405,7 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 	server.SyncthingPrivate = v.GetBool("syncthingPrivateNetwork")
 	server.SyncthingPort = v.GetString("syncthingPort")
 	server.ActivityDays = v.GetInt("activityDays")
-	server.WebDAV = v.GetBool("webdav")
+	server.WebDAV = v.GetBool("webdavEnabled")
 	server.WebDAVPort = v.GetString("webdavPort")
 	server.WebDAVHostPort = v.GetString("webdavHostPort")
 	server.WebDAVUser = v.GetString("webdavUser")
@@ -427,7 +427,7 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 			return nil, fmt.Errorf("--webdavPort must be a port number, got %q", server.WebDAVPort)
 		}
 		if len(server.WebDAVPassword) < 8 {
-			return nil, errors.New("--webdavPassword is required with --webdav and must be at least 8 characters")
+			return nil, errors.New("--webdavPassword is required with --webdavEnabled and must be at least 8 characters")
 		}
 	}
 	if port, err := strconv.Atoi(server.SyncthingPort); err != nil || port < 1 || port > 65535 {

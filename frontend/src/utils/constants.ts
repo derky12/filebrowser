@@ -18,6 +18,7 @@ const resizePreview: boolean = window.FileBrowser.ResizePreview;
 const enableExec: boolean = window.FileBrowser.EnableExec;
 const enableSync: boolean = window.FileBrowser.EnableSync;
 const enableTrash: boolean = window.FileBrowser.EnableTrash;
+const enableWebdav: boolean = window.FileBrowser.EnableWebDAV;
 const tusSettings = window.FileBrowser.TusSettings;
 const origin = window.location.origin;
 const tusEndpoint = `/api/tus`;
@@ -43,6 +44,7 @@ export {
   enableExec,
   enableSync,
   enableTrash,
+  enableWebdav,
   tusSettings,
   origin,
   tusEndpoint,

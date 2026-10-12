@@ -71,10 +71,15 @@ func davShareURL(base, name string) string {
 }
 
 func davShareInfoOf(base, rootReal string, share settings.WebDAVShare) webdavShareInfo {
+	// Usable the way the server judges it: a real folder, not behind a symlink.
 	available := false
 	if rootReal != "" {
-		info, err := os.Stat(filepath.Join(rootReal, filepath.FromSlash(share.Dir)))
-		available = err == nil && info.IsDir()
+		base := filepath.Join(rootReal, filepath.FromSlash(share.Dir))
+		real, err := filepath.EvalSymlinks(base)
+		if err == nil && real == base {
+			info, statErr := os.Stat(real)
+			available = statErr == nil && info.IsDir()
+		}
 	}
 
 	return webdavShareInfo{

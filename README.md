@@ -27,6 +27,8 @@ File Browser provides a file managing interface within a specified directory and
 | 批量重命名 | 选中多个项目 → “批量重命名”：查找替换（支持正则）、前后缀、大小写、编号，带实时预览 | [详情](#批量重命名与复制一份) |
 | 复制一份 | 选中项目 → “复制一份”，在原位置生成 `名称(1)` | [详情](#批量重命名与复制一份) |
 | 压缩 / 解压 | 选中项目 → “压缩”（zip、tar.gz、tar.xz、tar.zst 等）；选中压缩包 → “解压” | [详情](#压缩与解压) |
+| WebDAV 共享 | 右键文件夹 → “共享为 WebDAV”，用 Finder、Windows 资源管理器、手机 App、rclone 等挂载；密码、端口、地址在 `.env` 里；可放在 Caddy / nginx 后面用 HTTPS | [详情](#webdav-共享)、[HTTPS](#用-https-反向代理访问-webdav) |
+| 路径自动补全 | 同步页“接受共享”的保存位置、解压目标：输入时提示已有文件夹（↑↓、Tab、Enter） | [详情](#路径自动补全) |
 | 磁盘占用 | 顶栏“磁盘占用”：按大小显示每个子项占多少，逐层钻取 | [详情](#磁盘占用) |
 
 **安全与找回**
@@ -313,6 +315,237 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - **按钮和快捷键**：顶栏有“复制到另一栏”“移动到另一栏”“新建文件夹”“删除”“交换两栏”“刷新”。键盘：Tab 切换栏、F5 复制、F6 移动、F7 新建文件夹、Delete 删除（走回收站）、Backspace 上一级、Enter 打开、Ctrl/Cmd+A 全选、上下方向键移动选择。选择：单击、Ctrl/Cmd 单击切换、Shift 单击选择范围；双击文件夹进入，双击文件在文件视图里打开。表头点击排序（名称、大小、修改时间，文件夹始终在前）。
 - **其他**：两栏的路径记在浏览器里（`dualPanePaths`）；窄屏下两栏上下排列。它是独立的页面（`views/DualPane.vue`），不使用文件列表的选择状态；移动和复制复用 `utils/drop.ts` 的 `transferItems`。
 
+### WebDAV 共享
+
+把 File Browser 里的文件夹共享成 WebDAV，其他设备用任何 WebDAV 客户端就能挂载：右键文件夹 → “共享为 WebDAV”。
+
+#### 启用（`.env`）
+
+WebDAV 默认**关闭**。在 `.env` 里设置（compose 会把它们传给容器，见[部署](#部署)）：
+
+| `.env` 变量 | 默认 | 说明 |
+|---|---|---|
+| `WEBDAV_ENABLED` | `false` | 设为 `true` 才启动 WebDAV 服务；关闭时端口不通，界面里不出现 WebDAV 相关入口，接口返回 404 |
+| `WEBDAV_USER` | `webdav` | 登录用的用户名（所有共享共用） |
+| `WEBDAV_PASSWORD` | 空 | 登录密码，**至少 8 个字符**，启用时必填，太短或为空时容器会拒绝启动并说明原因。`scripts/init-env.sh` 会生成一个随机的 |
+| `WEBDAV_BIND_IP` | `127.0.0.1` | 端口发布在哪个地址：写成这台机器的 Tailscale 地址（和 `HOST_IP` 相同）就能从别的设备直接访问；留 `127.0.0.1` 则只有本机可以访问（本机有 HTTPS 代理时用这个） |
+| `WEBDAV_PORT` | `38004` | 宿主机端口（容器里固定监听 8090） |
+| `WEBDAV_PUBLIC_URL` | 空 | 客户端实际用的地址，例如 `https://dav.example.ts.net` 或 `https://example.ts.net/dav`。设置后弹窗和设置页里显示的地址就按它拼；不设则显示 `http://<你打开 File Browser 用的主机>:<WEBDAV_PORT>` |
+| `WEBDAV_PREFIX` | 空 | WebDAV 挂在代理的子路径下时的路径前缀，例如 `/dav`（不要带结尾的 `/`） |
+| `WEBDAV_BEHIND_PROXY` | `false` | 前面有可信的反向代理时设为 `true`，才会信任 `X-Forwarded-For` 来判断客户端地址 |
+
+最小例子（直接用 Tailscale 地址访问，HTTP）：
+
+```bash
+# .env
+WEBDAV_ENABLED=true
+WEBDAV_PASSWORD=换成至少八位的密码
+WEBDAV_BIND_IP=100.64.0.7        # 这台机器的 Tailscale 地址
+WEBDAV_PORT=38004
+```
+```bash
+docker compose -f docker-compose.yml up -d      # 或 docker-compose（v1），见部署一节
+```
+然后右键一个文件夹创建共享，地址是 `http://100.64.0.7:38004/<共享名>/`。
+
+#### 使用
+
+1. **共享**：文件列表里右键一个文件夹（只对管理员显示），选“共享为 WebDAV”，填共享名（默认是文件夹名；可用字母、数字、空格、点、横线、下划线，最长 63 个字符，不分大小写且不能重名），选“只读”（默认）或“读写”，点“共享”。弹窗里显示这个共享的地址、复制按钮、登录说明和各系统的连接方法。
+2. **管理**：设置 → WebDAV（管理员，启用后才有这个标签）显示服务地址、用户名，列出所有共享（名称、文件夹、访问权限、复制地址、停止共享），可以直接切换只读/读写，停止共享只是不再提供，**文件不会被改动**；文件夹被删除或变成符号链接时会标出“文件夹已不存在”。
+3. **客户端看到的**：根目录 `/` 是所有共享的列表，每个共享是一个顶层文件夹；客户端不能在根目录新建、删除或重命名东西，也不能删除或重命名共享文件夹本身，也不能在共享之间移动或复制。改动立刻生效（创建、停止、切换权限都不需要重启）。
+
+#### 设计与安全
+
+- **独立的服务**：File Browser 额外监听一个端口（容器里 8090），用 Go 官方的 `golang.org/x/net/webdav`。代码在 `http/webdav.go`（服务）和 `http/webdav_admin.go`（管理接口）。
+- **认证**：HTTP Basic，用户名和密码来自环境变量，用 SHA-256 摘要加常量时间比较，所有共享共用一个账号。同一个客户端地址连续输错 5 次，会被封锁 5 分钟（返回 429）；密码对了就清零；5 分钟窗口。
+- **客户端地址**：默认取连接的来源地址。设置了 `WEBDAV_BEHIND_PROXY=true`（`--webdavBehindProxy`）才取 `X-Forwarded-For` 的**最后一项**，因为反向代理会把真实客户端地址追加在最后，前面的项是客户端自己写的、可以伪造。所以直接暴露在网络上、没有代理时**不要**开这个选项。
+- **只读与读写**：共享默认只读。只读共享对 PUT、DELETE、MKCOL、MOVE、COPY、PROPPATCH、LOCK、UNLOCK 都在 HTTP 层返回 403（访达在无法加锁时通常会以只读方式挂载，这一点没有实测）；文件系统层还有第二道检查。
+- **限制在共享的文件夹里**：每个共享只能访问自己的文件夹（`files.ScopedFs`）。指向共享**外面**的符号链接会被拒绝，写入也不会穿过它；指向共享里面的符号链接可用。共享的文件夹后来被换成符号链接，或走出了服务器根目录，这个共享就会停用。`..`、`%2e%2e` 之类的路径无法跳到别的共享或根目录之外。
+- **创建共享的检查**（和同步功能同一套）：只有管理员；路径必须在你的 scope 里、必须是文件夹、**不能是 scope 根**、不能是符号链接或在符号链接里面、要通过访问规则。存储的是相对服务器根目录的路径，所以按用户设置了不同 scope 也没问题。
+- **WebDAV 里的删除是永久删除**，不走回收站（所以读写共享要谨慎，界面里选读写时会提示）。
+- **活动日志**：通过 WebDAV 做的修改会记录下来：`webdav_put`（带大小）、`webdav_mkdir`、`webdav_delete`、`webdav_move`、`webdav_copy`，用户显示为 WebDAV 的用户名，并带来源地址；创建、修改权限、停止共享记为 `webdav_share`、`webdav_mode`、`webdav_unshare`。只读操作（列目录、下载）不记录。
+- **锁**：用内存里的锁（`webdav.NewMemLS()`），重启后丢失，一般客户端没有问题。
+- **复制/移动用的 `Destination` 头**：库会拒绝和请求的 `Host` 不一致的目标，这就是反向代理必须保留 `Host` 的原因（见 [HTTPS](#用-https-反向代理访问-webdav)）。
+
+#### 管理接口（管理员）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/webdav` | `{enabled, user, baseURL, shares: [{name, path, readOnly, url, available, by}]}`，密码不会返回 |
+| POST | `/api/webdav/shares` | `{path, name?, readOnly?}`，`readOnly` 不写就是只读；返回这个共享 |
+| PATCH | `/api/webdav/shares/{name}` | `{readOnly}` |
+| DELETE | `/api/webdav/shares/{name}` | 停止共享（文件保留） |
+
+未启用 WebDAV 时都返回 404，非管理员 403，输入不合法 400 并说明原因。
+
+#### 命令行参数 / 环境变量
+
+| 参数 | 环境变量 | 默认 | 对应 `.env` |
+|---|---|---|---|
+| `--webdavEnabled` | `FB_WEBDAV_ENABLED` | `false` | `WEBDAV_ENABLED` |
+| `--webdavPort` | `FB_WEBDAV_PORT` | `8090` | （容器内固定） |
+| `--webdavHostPort` | `FB_WEBDAV_HOST_PORT` | 空 | `WEBDAV_PORT`，只用来拼显示的地址 |
+| `--webdavUser` | `FB_WEBDAV_USER` | `webdav` | `WEBDAV_USER` |
+| `--webdavPassword` | `FB_WEBDAV_PASSWORD` | 空 | `WEBDAV_PASSWORD` |
+| `--webdavPrefix` | `FB_WEBDAV_PREFIX` | 空 | `WEBDAV_PREFIX` |
+| `--webdavPublicUrl` | `FB_WEBDAV_PUBLIC_URL` | 空 | `WEBDAV_PUBLIC_URL` |
+| `--webdavBehindProxy` | `FB_WEBDAV_BEHIND_PROXY` | `false` | `WEBDAV_BEHIND_PROXY` |
+
+这些参数只在运行时生效，不写入数据库；共享列表存在数据库的设置里。顺带修了一个上游的问题：环境变量名由参数名生成，当一个参数是另一个参数的前缀时（`--socket` 和 `--socketPerm`），较长的那个参数的环境变量原来不生效，现在按长度从长到短匹配，并有测试检查**每个**参数都能用环境变量设置（`cmd/env_flags_test.go`）。
+
+#### 连接方法
+
+先看设置 → WebDAV 页底部或共享弹窗里的说明（会把地址填好）。要点：
+
+- **macOS 访达**：前往 → 连接服务器（⌘K），输入地址，用 WEBDAV_USER 和密码登录。只读共享会以只读方式挂载。
+- **Windows**：资源管理器 → 此电脑 → 映射网络驱动器，或 `net use Z: https://dav.example.ts.net/Photos/ /user:webdav *`。**Windows 默认只允许在 HTTPS 下使用 Basic 认证**，用 `http://` 的地址会连不上或反复要密码（错误 0x80070043 等）。两个办法：给它配 [HTTPS](#用-https-反向代理访问-webdav)（推荐）；或者把注册表 `HKLM\SYSTEM\CurrentControlSet\Services\WebClient\Parameters` 里的 `BasicAuthLevel`（DWORD）设为 `2`，然后重启 WebClient 服务（`net stop webclient && net start webclient`）。Windows 对 WebDAV 下载还有默认 50 MB 的大小限制（同一个注册表项里的 `FileSizeLimitInBytes`），传大文件要调大。
+- **Linux**：GNOME 文件 → 其他位置，输入把 `https://` 换成 `davs://` 的地址；命令行用 rclone：`rclone mount :webdav: ~/dav --webdav-url https://dav.example.ts.net --webdav-user webdav --webdav-pass $(rclone obscure 密码) --webdav-vendor other`；或者 davfs2：`sudo mount -t davfs https://dav.example.ts.net/Photos/ /mnt/dav`。
+- **iOS**：文件 App → 右上角 ⋯ → 连接服务器，输入地址；**Android**：用支持 WebDAV 的文件管理器，例如 Solid Explorer、CX 文件管理器，同步用 FolderSync。
+- **rclone（任意系统）**：`rclone lsd :webdav: --webdav-url <地址> --webdav-user webdav --webdav-pass $(rclone obscure 密码) --webdav-vendor other`，再用 `copy`、`sync`、`moveto`、`mount` 等。
+
+#### 测试
+
+- **自动测试**（`http/webdav_test.go`，18 项，含竞态检测）：认证和限流、根目录列出共享、只读共享拒绝所有写操作、读写共享的 PUT/MKCOL/MOVE/COPY/DELETE 和 6 MB 文件、根目录和共享文件夹本身不能改、共享之间不能移动、`..` 和 `%2e%2e` 和符号链接都出不去、共享被换成符号链接就停用、前缀、`Destination` 的主机必须一致、代理后的客户端地址、活动日志、管理接口的各种校验、新共享立即生效。对“只读检查”和“符号链接限制”做过变异测试：去掉它们对应的用例会失败。
+- **真实客户端**：用 rclone（官方镜像）对真实服务做了：列出共享、读只读共享、写只读共享被拒（403）、写读写共享、20 MB 文件上传并比对内容一致、整棵目录树的上传/服务器端移动/复制/删除、读不到共享之外的文件、错误密码 401、活动日志。
+- **真实反向代理**：用 nginx 和 Caddy 的官方镜像按[下面的示例文件](#用-https-反向代理访问-webdav)实际跑过，结果写在 HTTPS 一节。
+- **用 compose 起真实容器**：默认关闭（端口不通、界面标志为 false、接口 404）；用 `.env` 开启后认证、只读、`WEBDAV_PUBLIC_URL`、`WEBDAV_PREFIX` 都正确；密码太短时容器拒绝启动。
+- **没有测过**：macOS 访达、Windows 资源管理器、iOS/Android 客户端、davfs2、Tailscale Serve（本机没有这些环境）；上面对它们的说明来自它们的通用行为，请在你的设备上确认，遇到问题可以对照下面的排查表。
+
+#### 限制
+
+- 所有共享共用一个账号和密码，不能按共享分别授权；想要更细的控制需要扩展（例如每个共享一个密码）。
+- 密码以明文放在 `.env`（`scripts/init-env.sh` 生成的 `.env` 权限是 600）。
+- 没有 HTTPS 时密码以 HTTP Basic 明文传输，只适合走 Tailscale 这样本身加密的网络；要用 HTTPS 见下一节。
+- 不支持 WebDAV 的“死属性”（PROPPATCH 自定义属性），访达等客户端设置时间戳之类的请求会被忽略。
+- WebDAV 的删除不走回收站。
+
+### 用 HTTPS 反向代理访问 WebDAV
+
+WebDAV 服务本身只说 HTTP。要 HTTPS，在前面放一个反向代理（Tailscale Serve、Caddy 或 nginx）。好处：Windows 资源管理器只有这样才能直接用 Basic 认证；密码不再明文传输（即使在 Tailscale 里也多一层）；可以用域名。
+
+**示例文件在 `examples/https/`，下面的结论都是用 nginx 和 Caddy 的官方镜像实际测过的**（PROPFIND、PUT、GET、MKCOL、MOVE、COPY、DELETE、300 MB 和 150 MB 上传并比对内容一致、rclone 通过 HTTPS）：
+
+| 文件 | 内容 |
+|---|---|
+| `Caddyfile` | Caddy：WebDAV 和网页界面各一个域名 |
+| `nginx.conf` | nginx：同上，带每一行的说明 |
+| `nginx-subpath.conf` | nginx：一个域名，WebDAV 放在 `/dav/` 下 |
+| `docker-compose.caddy.yml` | 给主 compose 加一个 Caddy 服务 |
+| `docker-compose.nginx.yml` | 给主 compose 加一个 nginx 服务 |
+
+#### 必须注意的几点（都是实测验证过的）
+
+1. **代理必须保留客户端用的 `Host`**。MOVE 和 COPY（也就是在客户端里重命名、移动、复制文件）的请求带一个 `Destination: https://域名/路径` 头，WebDAV 服务要求它的主机和请求的 `Host` 一致，否则返回 **502**。nginx 默认会把 `Host` 改成上游的名字，所以**上传、下载、列目录都正常，唯独重命名和移动失败**，很难排查。nginx 里要写 `proxy_set_header Host $http_host;`。**不要写 `$host`**：它不带端口，在非 443 的端口上同样 502（实测）。Caddy 默认保留 `Host`，不需要任何设置（实测）。
+2. **客户端地址**：代理会追加 `X-Forwarded-For`，真实客户端地址在**最后**。设置 `WEBDAV_BEHIND_PROXY=true` 后，WebDAV 才用它来做活动日志和“输错密码”的限制。没有它的话，所有客户端在 WebDAV 看来都是代理的地址，一个人输错 5 次密码会把所有人一起锁住。实测：通过 nginx 输错 5 次后，用对的密码也返回 429，客户端自己在请求里伪造 `X-Forwarded-For` 也绕不过去。**只在确实有代理、并且 WebDAV 端口没有对外开放时才设**，否则客户端可以伪造这个头。
+3. **后端端口别再对外**：有代理时设 `WEBDAV_BIND_IP=127.0.0.1`，直连的 HTTP 端口就只有本机能访问，别人只能走代理（Compose 里代理用 `filebrowser:8090` 在内部网络访问后端，不需要宿主机端口）。
+4. **大文件**：nginx 默认 `client_max_body_size 1m`，更大的 PUT 会得到 **413**（实测）。写 `client_max_body_size 0;`，并关掉请求缓冲（`proxy_request_buffering off; proxy_buffering off;`），加长超时（`proxy_read_timeout 3600s;`）。示例文件里都有。Caddy 不需要（实测 150 MB 没问题）。
+5. **子路径**（`https://example.ts.net/dav/`）：设 `WEBDAV_PREFIX=/dav`，**代理不要去掉这个前缀**（nginx 的 `proxy_pass http://filebrowser:8090;` 后面不要写路径），并设 `WEBDAV_PUBLIC_URL=https://example.ts.net/dav`，这样界面里显示的地址才对。实测 `nginx-subpath.conf` 下 PROPFIND、PUT、MOVE（`Destination` 带 `/dav/`）都正常，同一个域名的根路径仍然是网页界面。
+6. 证书：`100.x.y.z` 这样的私有 Tailscale 地址**拿不到** Let's Encrypt 证书。用 `机器名.tailnet名.ts.net` 的域名，证书由 Tailscale 提供（方式 A、B、C 都可以），或者用自己的域名加 DNS 验证。
+
+#### 方式 A：Tailscale Serve（最省事，不需要额外容器）
+
+Tailscale 自己终止 TLS，自动提供 `机器名.tailnet名.ts.net` 的有效证书，仍然只在你的 tailnet 里可达。**用 Serve，不要用 Funnel**（Funnel 会暴露到公网）。
+
+```bash
+# .env：WebDAV 只在本机监听，Tailscale 把它转成 HTTPS
+WEBDAV_ENABLED=true
+WEBDAV_PASSWORD=...
+WEBDAV_BIND_IP=127.0.0.1
+WEBDAV_PORT=38004
+WEBDAV_PUBLIC_URL=https://机器名.tailnet名.ts.net:8443
+WEBDAV_BEHIND_PROXY=true
+
+# 在宿主机上
+tailscale serve --bg --https=8443 http://127.0.0.1:38004
+tailscale serve status
+```
+地址是 `https://机器名.tailnet名.ts.net:8443/共享名/`。Serve 保留 `Host`，并追加 `X-Forwarded-For`。网页界面也可以同样转成 HTTPS：`tailscale serve --bg --https=443 http://127.0.0.1:38002`。**这一种我没有在本机实测**（这里没有 Tailscale），命令来自 Tailscale 的文档，不同版本的参数写法可能略有不同，以 `tailscale serve --help` 为准。
+
+#### 方式 B：Caddy
+
+1. 把 `examples/https/Caddyfile` 里的名字换成你的（`dav.example.ts.net` → 你的域名）。名字在 tailnet 下（`*.ts.net`）时，Caddy 能通过 Tailscale 自动申请证书（需要它能访问宿主机的 `/var/run/tailscale/tailscaled.sock`，compose 文件里已挂载）。
+2. `.env`：
+   ```bash
+   WEBDAV_ENABLED=true
+   WEBDAV_PASSWORD=...
+   WEBDAV_BIND_IP=127.0.0.1
+   WEBDAV_PUBLIC_URL=https://dav.example.ts.net
+   WEBDAV_BEHIND_PROXY=true
+   ```
+3. 启动：`docker compose -f docker-compose.yml -f examples/https/docker-compose.caddy.yml up -d`（v1：`docker-compose -f docker-compose.yml -f examples/https/docker-compose.caddy.yml up -d`）。
+
+```caddy
+dav.example.ts.net {
+	reverse_proxy filebrowser:8090
+}
+files.example.ts.net {
+	reverse_proxy filebrowser:80
+}
+```
+实测：用 `tls internal`（自签名）起一个 Caddy，不加任何 `Host`、请求体大小的设置，PROPFIND、PUT、MKCOL、MOVE、COPY、DELETE、150 MB 上传、rclone 都正常。用 Tailscale 证书的部分（`*.ts.net` 的自动申请）没有实测。
+
+#### 方式 C：nginx
+
+1. 准备证书和密钥放到 `examples/https/certs/fullchain.pem` 和 `privkey.pem`，例如 `tailscale cert --cert-file fullchain.pem --key-file privkey.pem dav.example.ts.net`。
+2. 改 `examples/https/nginx.conf` 里的 `server_name`。
+3. `.env` 同方式 B。
+4. 启动：`docker compose -f docker-compose.yml -f examples/https/docker-compose.nginx.yml up -d`。
+
+`examples/https/nginx.conf` 里 WebDAV 的 server 块（每一行为什么需要都在文件里写了注释）：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name dav.example.ts.net;
+    ssl_certificate     /certs/fullchain.pem;
+    ssl_certificate_key /certs/privkey.pem;
+
+    client_max_body_size 0;            # 默认 1m 会让大文件 PUT 得到 413
+    proxy_request_buffering off;       # 边收边转发，不先落盘
+    proxy_buffering off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_http_version 1.1;
+
+    location / {
+        proxy_pass http://filebrowser:8090;
+        proxy_set_header Host $http_host;                       # 必须：否则 MOVE/COPY 返回 502
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;   # 客户端地址放在最后
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+子路径版本见 `examples/https/nginx-subpath.conf`。
+
+#### 验证 HTTPS 配好了
+
+在任意一台设备上（自签名证书加 `-k`）：
+
+```bash
+# 能列出共享（207）
+curl -u webdav:密码 -X PROPFIND -H 'Depth: 1' https://dav.example.ts.net/
+# 重命名/移动要能成功（201），这一步专门检查 Host 有没有被代理改掉
+curl -u webdav:密码 -T /etc/hostname https://dav.example.ts.net/某读写共享/a.txt
+curl -u webdav:密码 -X MOVE https://dav.example.ts.net/某读写共享/a.txt \
+     -H 'Destination: https://dav.example.ts.net/某读写共享/b.txt'
+```
+
+#### 排查
+
+| 现象 | 原因和解决 |
+|---|---|
+| 重命名、移动、复制文件失败（502），上传下载正常 | 代理改了 `Host`：nginx 加 `proxy_set_header Host $http_host;`（不是 `$host`） |
+| 上传大文件失败（413） | nginx 的 `client_max_body_size`，设为 `0` |
+| 大文件上传到一半超时 | 加长 `proxy_read_timeout` / `proxy_send_timeout`，关掉 `proxy_request_buffering` |
+| 一直要求输入密码 / 401 | 用户名或密码不对；注意 `.env` 里的密码改了之后要重新创建容器；Windows 用 `http://` 时见上面“连接方法” |
+| 429 | 同一个客户端连续输错 5 次，等 5 分钟；放在代理后面却被所有人一起锁，说明没设 `WEBDAV_BEHIND_PROXY=true` |
+| 通过子路径访问得到 404 | `WEBDAV_PREFIX` 和代理的路径要一致，且代理**不能**去掉前缀 |
+| 界面里显示的地址不对 | 设置 `WEBDAV_PUBLIC_URL`（含子路径） |
+| 访达以只读方式挂载 | 该共享是只读的（设置 → WebDAV 里改成读写） |
+| 容器起不来，日志里写 `--webdavPassword is required` | `WEBDAV_ENABLED=true` 但密码为空或少于 8 个字符；或者环境变量没有传进容器（检查 `docker compose config`） |
+| 浏览器提示证书不受信任 | 自签名证书；用 `ts.net` 域名加 Tailscale 证书，或自己的域名 |
+| docker-compose v1 更新时报 `KeyError: 'ContainerConfig'` | docker-compose 1.29 和较新的 Docker 引擎重建已有容器时的已知故障，不是本项目的问题：先 `docker-compose down` 再 `up -d`，或者改用 `docker compose`（v2） |
+
 ### 多架构 Docker 构建与发布
 
 - **`Dockerfile.multiarch`**：从源码构建，三个阶段。① 在构建机上用 `node:24-alpine` 构建前端；② 在构建机上用 `golang:1.25-alpine` 交叉编译 Go 二进制（`CGO_ENABLED=0`，`-trimpath`，`-ldflags "-s -w"`，带 `VERSION` 和 `COMMIT`）；③ `alpine:3.23` 最终镜像，带 `tini`、`su-exec`、`jq`、`ca-certificates`、`mailcap`。前端和 Go 编译都在构建机上原生运行，不需要 QEMU。
@@ -352,13 +585,15 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 | `SYNC_PORT` | `23000` | 同步端口（TCP + UDP），所有机器用同一个值；添加设备时地址没写端口就用它 |
 | `DISCOVERY_PORT` | `23001` | 本地发现端口（UDP，发现已被关闭，所以没有流量） |
 | `SYNCTHING_NAME` | 无 | 对方看到的设备名，**每台机器要不同** |
+| `WEBDAV_ENABLED`、`WEBDAV_USER`、`WEBDAV_PASSWORD`、`WEBDAV_BIND_IP`、`WEBDAV_PORT`、`WEBDAV_PUBLIC_URL`、`WEBDAV_PREFIX`、`WEBDAV_BEHIND_PROXY` | 都有默认值（WebDAV 关闭，端口只绑定 `127.0.0.1`，`38004`） | WebDAV 的设置，详见 [WebDAV 共享](#webdav-共享)；旧的 `.env` 里没有它们也能正常使用 |
 | `PUID` / `PGID` | `0` / `0` | 容器运行的用户；服务 root 拥有的文件需要 0 |
 
 4. **数据**：`DATA_DIR` 挂到 `/srv`；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
 5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）；两个服务都写了 `platform`。
 6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
 7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。`hostname must be a string`（或别的变量“必须是字符串”）说明某个变量解析成了空值：`.env` 没有被读到（它必须和 `docker-compose.yml` 在同一个目录，文件名就是 `.env`，或者用 `--env-file` 指定），或者当前 shell 里导出了同名的空变量（shell 优先于 `.env`，用 `unset` 清掉）。用 `docker compose -f docker-compose.yml config --environment | grep -E "ARCH|HOST_IP|SYNCTHING"` 可以看到 compose 实际读到的值。注意：compose 里的变量**没有默认值，也没有必填检查**，缺失的变量只会得到一条 “Defaulting to a blank string” 的警告，然后变成空字符串（例如 `PUID` 为空时容器会退回到用户 1000，读不了 root 的文件）。所以 `.env` 必须把下面表里的变量都写全。引号、等号两边的空格、Windows 换行不会造成问题。
-8. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
+8. **更新镜像**：`docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。如果你用的是 docker-compose 1.29（v1）并且在重建容器时报 `KeyError: 'ContainerConfig'`，先 `docker-compose down` 再 `up -d`，或改用 `docker compose`（v2）。
+9. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明
 
@@ -375,6 +610,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 
 - 后端新增：`syncthing/`（客户端）、`http/sync.go`、`http/permissions.go`（+ `permissions_unix.go` / `permissions_windows.go`）、`http/format.go`、`http/static_test.go`、`http/users_favorites_test.go`、`http/sync_test.go`、`http/permissions_test.go`、`http/format_test.go`、`users/favorites_test.go`；修改 `users/users.go`（`Favorites`、`FolderColors` 及校验）、`http/users.go`（校验失败返回 400）、`http/http.go`（注册 `/api/sync`）、`http/static.go`（向前端传 `EnableSync`）、`settings/settings.go` 和 `cmd/root.go`（运行时的 Syncthing 参数）。
 - 前端新增：`api/sync.ts`、`types/sync.d.ts`、`utils/{drop,favorites,folderColors,syncRate}.ts`、`api/{permissions,formatGo}.ts`、`utils/editor/{formatters,aceAssets,aceFiles}.ts`、`components/prompts/{FolderColor,SyncFolder,Permissions}.vue`、`components/settings/SyncDeviceForm.vue`、`views/settings/Sync.vue`；修改 `stores/auth.ts`、`Sidebar.vue`、`ListingItem.vue`、`FileListing.vue` 等。
+- WebDAV：`http/webdav.go`、`http/webdav_admin.go`、`views/settings/WebDAV.vue`、`components/prompts/WebdavShare.vue`、`components/settings/WebdavHelp.vue`、`api/webdav.ts`、`examples/https/`（Caddy、nginx 示例）。
 - 部署与发布新增：`Dockerfile.multiarch`、`docker/multiarch/entrypoint.sh`、`docker-compose.yml`、`.env.example`、`compose.multiarch.yaml`、`VERSION`、`CHANGES.md`、`scripts/{release,release-all,changes,init-env}.sh`。
 
 ### 开发与测试
@@ -388,6 +624,7 @@ pnpm run build                                            # 构建前端到 fron
 
 - **后端测试**：`users/favorites_test.go`（收藏夹和颜色的规范化与校验）、`http/users_favorites_test.go`（普通用户可以改、非法输入返回 400）、`http/sync_test.go`（用内存里的假 Syncthing 服务器，覆盖权限、路径校验、符号链接、重叠、设备管理、接受共享、状态和速度字段、错误映射）、`http/permissions_test.go`（模式、递归、拒绝 scope 根/符号链接/setuid、规则隐藏、改属主）、`http/format_test.go`、`http/static_test.go`。对符号链接防护做过变异测试：去掉防护后对应用例会失败。
 - **前端测试**：`utils/__tests__/favorites.test.ts`、`stores/__tests__/auth-favorites.test.ts`（含“令牌刷新后收藏夹仍在”的回归测试）、`utils/__tests__/sync-rate.test.ts`、`utils/__tests__/formatters.test.ts`（真实运行 Prettier、Ruff、sql-formatter，Go 的服务器调用用 mock）。
+- **WebDAV 和参数的测试**：`http/webdav_test.go`、`cmd/env_flags_test.go`（每个参数都能用环境变量设置）；真实客户端和反向代理的测试见 [WebDAV 共享](#测试)。
 - **近期功能的测试**：`http/trash_test.go`（移入和还原、配额淘汰、过期、过大直接删除、设置往返）、`http/activity_test.go`、`http/diskusage_test.go`（含竞态检测）、`http/archive_test.go`（6 种格式往返、恶意条目、限制）、`http/sync_extras_test.go`；前端 `utils/__tests__/{batch-rename,dual-pane,archives}.test.ts`。
 - **端到端**：用 Docker 起两套真实的 Syncthing + File Browser，再用 Playwright 驱动浏览器，把配对、共享、接受、同步、暂停恢复、拖放到收藏夹、收藏夹和颜色在子目录跳转和刷新后是否保留、传输速度显示，以及编辑器（字体、各类型格式化、保存时格式化、资源是否全部来自应用自身）和权限弹窗（右键入口、改权限、改属主、递归）都走过一遍。近期的功能（回收站和设置、活动页、磁盘占用、压缩解压、批量重命名、复制一份、双栏拖放，以及同步标记、冲突、忽略规则、限速）也都在真实浏览器里走过一遍，发现并修了其中的两个问题。这部分是手工脚本，没有放进仓库。
 - 测试时要注意：Syncthing 默认不对局域网地址限速，在 Docker 内网里测速度要同时设置 `limitBandwidthInLan: true`。

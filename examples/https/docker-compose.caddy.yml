@@ -1,0 +1,22 @@
+# Adds Caddy for HTTPS. Use it together with the main file:
+#   docker compose -f docker-compose.yml -f examples/https/docker-compose.caddy.yml up -d
+#
+# In .env: WEBDAV_BIND_IP=127.0.0.1 (so the plain HTTP port is not reachable
+# from the network), WEBDAV_BEHIND_PROXY=true and
+# WEBDAV_PUBLIC_URL=https://dav.example.ts.net
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - filebrowser
+    ports:
+      - "${HOST_IP}:443:443"
+    volumes:
+      - ./examples/https/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      # Lets Caddy get certificates for *.ts.net names from Tailscale.
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock
+
+volumes:
+  caddy_data:

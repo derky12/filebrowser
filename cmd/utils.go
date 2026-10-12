@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -71,13 +72,23 @@ func dbExists(path string) (bool, error) {
 // use FB_BRANDING_DISABLE_EXTERNAL environment variables, even when the
 // option name is branding.disableExternal.
 func generateEnvKeyReplacements(cmd *cobra.Command) []string {
-	replacements := []string{}
+	type pair struct{ old, new string }
 
+	pairs := []pair{}
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		oldName := strings.ToUpper(f.Name)
-		newName := strings.ToUpper(lo.SnakeCase(f.Name))
-		replacements = append(replacements, oldName, newName)
+		pairs = append(pairs, pair{strings.ToUpper(f.Name), strings.ToUpper(lo.SnakeCase(f.Name))})
 	})
+
+	// strings.NewReplacer tries the pairs in order at each position, so the
+	// longer names must come first: otherwise a flag that is the prefix of
+	// another (--socket and --socketPerm) is replaced alone and the longer
+	// flag's environment variable never matches.
+	sort.SliceStable(pairs, func(i, j int) bool { return len(pairs[i].old) > len(pairs[j].old) })
+
+	replacements := make([]string, 0, len(pairs)*2)
+	for _, p := range pairs {
+		replacements = append(replacements, p.old, p.new)
+	}
 
 	return replacements
 }

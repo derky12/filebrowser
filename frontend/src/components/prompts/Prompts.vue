@@ -36,6 +36,7 @@ import Permissions from "./Permissions.vue";
 import Compress from "./Compress.vue";
 import Extract from "./Extract.vue";
 import BatchRename from "./BatchRename.vue";
+import WebdavShare from "./WebdavShare.vue";
 
 const layoutStore = useLayoutStore();
 
@@ -66,6 +67,7 @@ const components = new Map<string, any>([
   ["compress", Compress],
   ["extract", Extract],
   ["batchRename", BatchRename],
+  ["webdavShare", WebdavShare],
 ]);
 
 const modal = computed(() => {

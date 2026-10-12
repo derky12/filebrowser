@@ -10,6 +10,14 @@ in the image label `com.filebrowser.fork.changes`
 Add a section here before every release (`scripts/release.sh` refuses to run
 without one) and bump `VERSION`.
 
+## 2.63.23-fork.3 (2026-10-12)
+
+- WebDAV: right click a folder > Share as WebDAV (read-only by default), manage the shares in Settings > WebDAV. One WebDAV server with a user name and password from .env (WEBDAV_ENABLED, WEBDAV_USER, WEBDAV_PASSWORD, WEBDAV_BIND_IP, WEBDAV_PORT), shares appear as top level folders, each confined to its folder; changes are logged and wrong passwords are limited per client address.
+- WebDAV behind an HTTPS reverse proxy: WEBDAV_PUBLIC_URL, WEBDAV_PREFIX and WEBDAV_BEHIND_PROXY, with tested Caddy and nginx examples (examples/https) and a README section on the pitfalls (the Host header for MOVE/COPY, body size limits, sub-paths, client addresses).
+- Folder path autocomplete when typing a path in the Sync tab (accept a shared folder) and in the extract dialog.
+- Fix: environment variables of a flag that is the prefix of another one did not work (FB_SOCKET_PERM); every flag is now tested for its environment variable.
+- docker-compose: new optional WebDAV variables with safe defaults (off, bound to 127.0.0.1); scripts/init-env.sh makes a WebDAV password.
+
 ## 2.63.23-fork.2 (2026-10-12)
 
 - Trash: deleting moves files to a recycle bin that can be restored; it can be switched off, and limited by total size (GB) and days, in Settings > Global Settings. Items larger than the whole limit are deleted for good; deleting can also skip the trash.

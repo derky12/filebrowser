@@ -15,6 +15,7 @@ import ProfileSettings from "@/views/settings/Profile.vue";
 import Shares from "@/views/settings/Shares.vue";
 import SyncSettings from "@/views/settings/Sync.vue";
 import ActivitySettings from "@/views/settings/Activity.vue";
+import WebDAVSettings from "@/views/settings/WebDAV.vue";
 import Errors from "@/views/Errors.vue";
 import { useAuthStore } from "@/stores/auth";
 import { baseURL, name } from "@/utils/constants";
@@ -34,6 +35,7 @@ const titles = {
   Shares: "settings.shareManagement",
   SyncSettings: "sync.title",
   ActivitySettings: "activity.title",
+  WebDAVSettings: "webdav.title",
   GlobalSettings: "settings.globalSettings",
   Users: "settings.users",
   User: "settings.user",
@@ -144,6 +146,14 @@ const routes = [
             path: "sync",
             name: "SyncSettings",
             component: SyncSettings,
+            meta: {
+              requiresAdmin: true,
+            },
+          },
+          {
+            path: "webdav",
+            name: "WebDAVSettings",
+            component: WebDAVSettings,
             meta: {
               requiresAdmin: true,
             },
