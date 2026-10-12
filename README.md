@@ -1,14 +1,31 @@
-> [!WARNING]
-> 
-> **File Browser is archived on 2026-09-01**. The last planned release has already shipped. There will be no further releases, bug fixes, or security fixes.   
-
 <p align="center">
   <img src="./branding/banner.png" width="550"/>
 </p>
 
-File Browser provides a file managing interface within a specified directory and it can be used to upload, delete, preview and edit your files. It is a **create-your-own-cloud**-kind of software where you can just install it on your server, direct it to a path and access your files through a nice web interface.
+# File Browser（增强分支）：自托管的网盘 + 多机同步 + WebDAV
 
-**Background:** [Goodbye File Browser, for Real This Time](https://hacdias.com/2026/07/28/filebrowser/), July 2026.
+这是一个**自己搭的私人云盘**：一个网页，管理你机器上的文件，并且让几台机器之间的文件保持同步。装在自己的服务器、NAS 或家里的电脑上，数据不经过任何第三方。
+
+**它可以做什么**
+
+- **管理文件**：在浏览器里上传、下载、预览、编辑、移动、复制、重命名、删除文件；支持批量重命名、压缩 / 解压（zip、tar.gz、tar.xz、tar.zst）、双栏拖放、磁盘占用分析。
+- **多机同步**：内置 Syncthing，右键文件夹就能“同步文件夹”到另一台机器，单向或双向，带冲突处理、忽略规则、限速和实时速度显示。
+- **WebDAV 共享**：右键文件夹“共享为 WebDAV”，用 Finder、Windows 资源管理器、手机 App 或 rclone 直接挂载；可放在 Caddy / nginx / Tailscale Serve 的 HTTPS 后面。
+- **不怕误删**：删除先进回收站，可还原；活动日志记录谁在什么时候做了什么。
+- **日常好用**：收藏夹、文件夹颜色、剪切 / 粘贴、带格式化和语法高亮的文本编辑器、右键修改 chmod / chown。
+- **一条命令部署**：amd64 与 arm64 共用一份 `docker-compose.yml`，`scripts/init-env.sh` 自动生成配置。
+
+完整功能表和用法见下面的[本分支的改动](#本分支的改动)，部署步骤见[部署](#部署)。
+
+## 致敬 File Browser
+
+本项目建立在 **[filebrowser/filebrowser](https://github.com/filebrowser/filebrowser)** 之上，衷心感谢 [Henrique Dias (hacdias)](https://github.com/hacdias) 和所有贡献者，多年来把 File Browser 做成了一个简洁、可靠、好上手的开源文件管理器。没有他们的工作，就没有这个分支。
+
+- 基于上游 **v2.63.23**，上游已于 2026-09-01 归档，不再发布新版本和安全修复。背景：[Goodbye File Browser, for Real This Time](https://hacdias.com/2026/07/28/filebrowser/)。
+- 本分支只是把我自己需要的功能加进去并继续维护，**与上游官方项目没有隶属关系**；问题请提在本仓库，不要去打扰上游。
+- 沿用上游的 [Apache License 2.0](LICENSE)，原有版权与许可声明全部保留。所有改动列在下面的[本分支的改动](#本分支的改动)和 [`CHANGES.md`](CHANGES.md)。
+- 上游自带的文档（[Security](#security)、[CONTRIBUTING.md](CONTRIBUTING.md)、`docs/`）保留在仓库里，对开发和安全使用仍然有用。
+
 
 ## 本分支的改动
 
@@ -69,8 +86,8 @@ File Browser provides a file managing interface within a specified directory and
 
 | 分支 | 机器 | 镜像 | Tailscale 地址 | `.env` 里的 `ARCH` |
 |---|---|---|---|---|
-| `main` | amd64 | `q25459768/filebrowser:latest`（amd64 镜像） | `100.64.0.7` | `amd64` |
-| `arm64` | arm64 | `q25459768/filebrowser:latest`（arm64 镜像） | `100.64.0.30` | `arm64` |
+| `main` | amd64 | `q25459768/filebrowser:latest`（amd64 镜像） | `<amd64-tailscale-ip>` | `amd64` |
+| `arm64` | arm64 | `q25459768/filebrowser:latest`（arm64 镜像） | `<arm64-tailscale-ip>` | `arm64` |
 
 - **两台机器用同一份 `docker-compose.yml`**：镜像 tag 是同时含 amd64 和 arm64 的多架构 tag（`latest`），`platform` 由 `.env` 里的 `ARCH` 决定，所以不会再拿到另一个架构的镜像。每台机器自己的值（架构、Tailscale 地址、端口、目录、设备名）都在不提交的 `.env` 里，见[部署](#部署)。
 - `arm64` 分支和 `main` 的内容现在是一样的；它只是发布脚本用来在 arm 机器上原生构建的来源（`git archive arm64`）。修改 `main` 之后把它合并进 `arm64` 即可，不需要再改 compose。
@@ -340,13 +357,13 @@ WebDAV 默认**关闭**。在 `.env` 里设置（compose 会把它们传给容�
 # .env
 WEBDAV_ENABLED=true
 WEBDAV_PASSWORD=换成至少八位的密码
-WEBDAV_BIND_IP=100.64.0.7        # 这台机器的 Tailscale 地址
+WEBDAV_BIND_IP=<amd64-tailscale-ip>        # 这台机器的 Tailscale 地址
 WEBDAV_PORT=38004
 ```
 ```bash
 docker compose -f docker-compose.yml up -d      # 或 docker-compose（v1），见部署一节
 ```
-然后右键一个文件夹创建共享，地址是 `http://100.64.0.7:38004/<共享名>/`。
+然后右键一个文件夹创建共享，地址是 `http://<amd64-tailscale-ip>:38004/<共享名>/`。
 
 #### 使用
 
@@ -560,7 +577,7 @@ curl -u webdav:密码 -X MOVE https://dav.example.ts.net/某读写共享/a.txt \
 - **发布流程**（`main` 为 amd64，`arm64` 分支为 arm64）：
   1. 在 `main` 上改好代码，把 `VERSION` 加一，并在 `CHANGES.md` 里写这个版本的变更，提交。
   2. 把 `main` 合并进 `arm64` 分支（两个分支内容相同，不需要再改 compose）。
-  3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `100.64.0.30`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；然后创建多架构 tag（`<版本>` 和 `latest`，指向两个架构的镜像）；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
+  3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `<arm64-tailscale-ip>`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；然后创建多架构 tag（`<版本>` 和 `latest`，指向两个架构的镜像）；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
   4. 在两台机器上 `docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。
   - `scripts/release.sh amd64|arm64` 可以单独构建并推送一个架构；`scripts/changes.sh <版本>` 打印某个版本的变更。
   - Docker Hub 的令牌不要写进仓库，用完即换。
@@ -569,9 +586,9 @@ curl -u webdav:密码 -X MOVE https://dav.example.ts.net/某读写共享/a.txt \
 
 两个服务：`filebrowser` 和 `syncthing`。**每台机器自己的值都在 `.env` 里**（不提交，已在 `.gitignore`），`docker-compose.yml` 只引用变量。
 
-1. **首次**：在仓库目录里运行 `scripts/init-env.sh`。它会探测架构（`uname -m`）和 Tailscale 地址（`tailscale ip -4`），生成 Syncthing 密钥，用主机名作设备名，写出 `.env`（权限 600），**不会覆盖已有的 `.env`**。探测不到时可以手动给：`HOST_IP=100.64.0.7 DATA_DIR=/root SYNCTHING_NAME=aus-main-debian scripts/init-env.sh`。也可以 `cp .env.example .env` 自己编辑。缺少必填的变量时 compose 会直接报错并说明。
+1. **首次**：在仓库目录里运行 `scripts/init-env.sh`。它会探测架构（`uname -m`）和 Tailscale 地址（`tailscale ip -4`），生成 Syncthing 密钥，用主机名作设备名，写出 `.env`（权限 600），**不会覆盖已有的 `.env`**。探测不到时可以手动给：`HOST_IP=<amd64-tailscale-ip> DATA_DIR=/root SYNCTHING_NAME=aus-main-debian scripts/init-env.sh`。也可以 `cp .env.example .env` 自己编辑。缺少必填的变量时 compose 会直接报错并说明。
    - **不要用没加引号的 heredoc（`cat > docker-compose.yml << EOF`）来写 compose 文件或 `.env`**：shell 会在写文件的时候把里面所有的 `${...}` 替换掉。变量没设置时，端口会变成 `":38002:80"`（报 “ports contains an invalid type”），`platform` 和镜像 tag 会被写死成 amd64（在 arm64 机器上就是 `exec /sbin/tini: exec format error`）。需要用 heredoc 时写成 `<< 'EOF'`（引号），或者直接用上面的脚本。
-2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<HOST_IP>:<WEB_PORT>`，默认 `http://100.64.0.7:38002`。
+2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<HOST_IP>:<WEB_PORT>`，默认 `http://<amd64-tailscale-ip>:38002`。
 3. **`.env` 变量**（compose 里没有默认值，**全部都要写在 `.env` 里**；`SYNCTHING_API_KEY` 由 `scripts/init-env.sh` 生成，示例文件里没有这一行）：
 
 | 变量 | 默认 | 说明 |
@@ -593,7 +610,7 @@ curl -u webdav:密码 -X MOVE https://dav.example.ts.net/某读写共享/a.txt \
 6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
 7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。`hostname must be a string`（或别的变量“必须是字符串”）说明某个变量解析成了空值：`.env` 没有被读到（它必须和 `docker-compose.yml` 在同一个目录，文件名就是 `.env`，或者用 `--env-file` 指定），或者当前 shell 里导出了同名的空变量（shell 优先于 `.env`，用 `unset` 清掉）。用 `docker compose -f docker-compose.yml config --environment | grep -E "ARCH|HOST_IP|SYNCTHING"` 可以看到 compose 实际读到的值。注意：compose 里的变量**没有默认值，也没有必填检查**，缺失的变量只会得到一条 “Defaulting to a blank string” 的警告，然后变成空字符串（例如 `PUID` 为空时容器会退回到用户 1000，读不了 root 的文件）。所以 `.env` 必须把下面表里的变量都写全。引号、等号两边的空格、Windows 换行不会造成问题。
 8. **更新镜像**：`docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。如果你用的是 docker-compose 1.29（v1）并且在重建容器时报 `KeyError: 'ContainerConfig'`，先 `docker-compose down` 再 `up -d`，或改用 `docker compose`（v2）。
-9. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
+9. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `<amd64-tailscale-ip>`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明
 

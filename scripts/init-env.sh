@@ -3,7 +3,7 @@
 # fresh Syncthing key and the device name. It never overwrites an existing .env.
 #
 #   scripts/init-env.sh                    # detect everything
-#   HOST_IP=100.64.0.7 DATA_DIR=/srv/data scripts/init-env.sh
+#   HOST_IP=100.x.y.z DATA_DIR=/srv/data scripts/init-env.sh
 #
 # Values you pass as environment variables win over the detected ones. Review
 # the file afterwards (DATA_DIR, ports).
