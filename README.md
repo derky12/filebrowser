@@ -60,18 +60,18 @@ File Browser provides a file managing interface within a specified directory and
 | 功能 | 怎么用 | 详情 |
 |---|---|---|
 | 多架构 Docker | 一份 `Dockerfile.multiarch` 构建 amd64 和 arm64 镜像 | [详情](#多架构-docker-构建与发布) |
-| docker-compose + `.env` | IP、端口、挂载目录、设备名都在 `.env` 里 | [详情](#部署) |
+| docker-compose + `.env` | 一份 compose 两个架构通用；架构、IP、端口、挂载目录、设备名都在 `.env` 里，`scripts/init-env.sh` 一键生成 | [详情](#部署) |
 | 版本号与变更记录 | 镜像带版本 tag 和变更标签，git 打标签，一条命令发布两个架构 | [详情](#多架构-docker-构建与发布) |
 
 ### 分支、镜像与机器
 
-| 分支 | 机器 | 镜像 | Tailscale 地址 | Syncthing 设备名 |
+| 分支 | 机器 | 镜像 | Tailscale 地址 | `.env` 里的 `ARCH` |
 |---|---|---|---|---|
-| `main` | amd64 | `q25459768/filebrowser:amd64`（`platform: linux/amd64`） | `100.64.0.7` | `fb-amd64` |
-| `arm64` | arm64 | `q25459768/filebrowser:arm64`（`platform: linux/arm64`） | `100.64.0.30` | `fb-arm64` |
+| `main` | amd64 | `q25459768/filebrowser:latest`（amd64 镜像） | `100.64.0.7` | `amd64` |
+| `arm64` | arm64 | `q25459768/filebrowser:latest`（arm64 镜像） | `100.64.0.30` | `arm64` |
 
-- 两个分支的代码完全相同。**每台机器自己的值都在 `.env` 里**（不提交，见 `.env.example` 和[部署](#部署)），所以 `docker-compose.yml` 在两个分支上只差 5 行：头部注释、File Browser 镜像的默认 tag、两个服务的 `platform`（`linux/amd64` / `linux/arm64`）、Syncthing 的默认设备名；`.env.example` 里的示例值（`HOST_IP`、`SYNCTHING_NAME`、`FB_TAG`）也各用自己机器的。
-- 修改 `main` 之后，把 `main` 合并进 `arm64`，再把 `docker-compose.yml` 和 `.env.example` 里这些值换成 arm64 的。
+- **两台机器用同一份 `docker-compose.yml`**：镜像 tag 是同时含 amd64 和 arm64 的多架构 tag（`latest`），`platform` 由 `.env` 里的 `ARCH` 决定，所以不会再拿到另一个架构的镜像。每台机器自己的值（架构、Tailscale 地址、端口、目录、设备名）都在不提交的 `.env` 里，见[部署](#部署)。
+- `arm64` 分支和 `main` 的内容现在是一样的；它只是发布脚本用来在 arm 机器上原生构建的来源（`git archive arm64`）。修改 `main` 之后把它合并进 `arm64` 即可，不需要再改 compose。
 - 仓库里还保留上游自带的 `compose.yaml`（带 redis）。因为它优先于 `docker-compose.yml`，所以启动时必须写 `-f docker-compose.yml`。
 - `compose.multiarch.yaml` 是一份不含 Syncthing、从源码构建的简单示例，日常不用。
 
@@ -309,15 +309,16 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 - **`Dockerfile.multiarch`**：从源码构建，三个阶段。① 在构建机上用 `node:24-alpine` 构建前端；② 在构建机上用 `golang:1.25-alpine` 交叉编译 Go 二进制（`CGO_ENABLED=0`，`-trimpath`，`-ldflags "-s -w"`，带 `VERSION` 和 `COMMIT`）；③ `alpine:3.23` 最终镜像，带 `tini`、`su-exec`、`jq`、`ca-certificates`、`mailcap`。前端和 Go 编译都在构建机上原生运行，不需要 QEMU。
 - **运行用户**：`docker/multiarch/entrypoint.sh` 按 `PUID` / `PGID` 创建用户后降权运行；`PUID=0` 时直接以 root 运行。它只对 `/config` 和 `/database` 做 `chown`，不碰 `/srv`。
 - **QEMU**：最终阶段有一步 `apk add` 要在目标架构下执行，所以在 amd64 机器上构建 arm64 镜像之前，要先执行一次 `docker run --privileged --rm tonistiigi/binfmt --install all`；在 arm64 机器上原生构建则不需要。
-- **版本号与变更记录**：版本形如 `<上游版本>-fork.<n>`（当前见仓库根目录的 `VERSION` 文件），它同时是：侧栏显示的版本、Docker 镜像的版本 tag、git 标签 `v<版本>`。每个版本在 `CHANGES.md` 里要有一节（`## <版本> (日期)` 加若干 `- ` 条目），`scripts/release.sh` 没有对应条目就会拒绝发布。每个镜像带这些 tag 和标签：
-  - `q25459768/filebrowser:<版本>-amd64` / `:<版本>-arm64`：固定版本，用于回滚；
-  - `q25459768/filebrowser:amd64` / `:arm64`：滚动 tag，`docker-compose.yml` 默认拉这个；
+- **版本号与变更记录**：版本形如 `<上游版本>-fork.<n>`（当前见仓库根目录的 `VERSION` 文件），它同时是：侧栏显示的版本、Docker 镜像的版本 tag、git 标签 `v<版本>`。每个版本在 `CHANGES.md` 里要有一节（`## <版本> (日期)` 加若干 `- ` 条目），`scripts/release.sh` 没有对应条目就会拒绝发布。每个版本带这些 tag 和标签：
+  - `q25459768/filebrowser:<版本>` 和 `:latest`：**多架构 tag**（同时含 amd64 和 arm64，Docker 按平台自动选），`docker-compose.yml` 默认用 `latest`；
+  - `:<版本>-amd64` / `:<版本>-arm64`：单一架构、固定版本，是上面多架构 tag 的组成部分，也可用于回滚；
+  - `:amd64` / `:arm64`：单一架构的滚动 tag（保留，旧的用法仍然有效）；
   - 镜像标签 `org.opencontainers.image.version`、`org.opencontainers.image.revision`（提交）和 `com.filebrowser.fork.changes`（该版本的变更，一行，用 `; ` 分隔）：`docker inspect --format '{{ index .Config.Labels "com.filebrowser.fork.changes" }}' q25459768/filebrowser:<版本>-amd64`。
-  - 想固定某个版本时，在 `.env` 里写 `FB_TAG=<版本>-amd64`（arm64 机器写 `-arm64`），compose 就会用它。
+  - 想固定某个版本时，在 `.env` 里写 `FB_TAG=<版本>`（两个架构通用，例如 `2.63.23-fork.2`）。
 - **发布流程**（`main` 为 amd64，`arm64` 分支为 arm64）：
   1. 在 `main` 上改好代码，把 `VERSION` 加一，并在 `CHANGES.md` 里写这个版本的变更，提交。
-  2. 合并进 `arm64` 分支，并把 `docker-compose.yml` 和 `.env.example` 里的 arm64 值改回来（见上）。
-  3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `100.64.0.30`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
+  2. 把 `main` 合并进 `arm64` 分支（两个分支内容相同，不需要再改 compose）。
+  3. 在 amd64 机器、`main` 分支上执行：`DOCKERHUB_USER=... DOCKERHUB_TOKEN=... scripts/release-all.sh`。脚本会检查分支、工作区干净、`arm64` 已合并 `main`、两个分支的 `VERSION` 一致、标签尚不存在；然后本机构建并推送 amd64，把 `arm64` 分支的源码用 `git archive` 传到 arm 机器（`ARM_HOST`，默认 `100.64.0.30`，ssh 端口 `ARM_PORT`，默认 `10086`）原生构建并推送 arm64；令牌通过标准输入传递，不出现在命令行，结束后两台机器都会 `docker logout`；然后创建多架构 tag（`<版本>` 和 `latest`，指向两个架构的镜像）；最后创建带变更说明的 git 标签并推送 `main`、`arm64` 和标签。
   4. 在两台机器上 `docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d`。
   - `scripts/release.sh amd64|arm64` 可以单独构建并推送一个架构；`scripts/changes.sh <版本>` 打印某个版本的变更。
   - Docker Hub 的令牌不要写进仓库，用完即换。
@@ -326,12 +327,14 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 
 两个服务：`filebrowser` 和 `syncthing`。**每台机器自己的值都在 `.env` 里**（不提交，已在 `.gitignore`），`docker-compose.yml` 只引用变量。
 
-1. **首次**：`cp .env.example .env`，编辑 `HOST_IP`（这台机器的 Tailscale 地址）、`DATA_DIR`（要服务和同步的文件夹）等，再生成共用的密钥：`echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" >> .env`（要先删掉示例里的 `SYNCTHING_API_KEY=change-me` 那一行）。缺少必填的变量时 compose 会直接报错并说明。
+1. **首次**：在仓库目录里运行 `scripts/init-env.sh`。它会探测架构（`uname -m`）和 Tailscale 地址（`tailscale ip -4`），生成 Syncthing 密钥，用主机名作设备名，写出 `.env`（权限 600），**不会覆盖已有的 `.env`**。探测不到时可以手动给：`HOST_IP=100.64.0.7 DATA_DIR=/root SYNCTHING_NAME=aus-main-debian scripts/init-env.sh`。也可以 `cp .env.example .env` 自己编辑。缺少必填的变量时 compose 会直接报错并说明。
+   - **不要用没加引号的 heredoc（`cat > docker-compose.yml << EOF`）来写 compose 文件或 `.env`**：shell 会在写文件的时候把里面所有的 `${...}` 替换掉。变量没设置时，端口会变成 `":38002:80"`（报 “ports contains an invalid type”），`platform` 和镜像 tag 会被写死成 amd64（在 arm64 机器上就是 `exec /sbin/tini: exec format error`）。需要用 heredoc 时写成 `<< 'EOF'`（引号），或者直接用上面的脚本。
 2. **启动**：`docker compose -f docker-compose.yml up -d`，然后打开 `http://<HOST_IP>:<WEB_PORT>`，默认 `http://100.64.0.7:38002`。
 3. **`.env` 变量**：
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
+| `ARCH` | **必填** | 这台机器的架构：`amd64` 或 `arm64`（`uname -m` 是 `x86_64` / `aarch64`）；决定两个服务的 `platform` |
 | `HOST_IP` | **必填** | 这台机器的 Tailscale 地址；所有端口都只发布在它上面（忘了填会报错，不会退回到监听所有网卡） |
 | `SYNCTHING_API_KEY` | **必填** | File Browser 和 Syncthing 共用的密钥 |
 | `DATA_DIR` | `/root` | 宿主机上被服务和同步的文件夹，两个容器都挂到 `/srv`（必须是同一个） |
@@ -339,14 +342,15 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 | `SYNCTHING_GUI_PORT` | `38003` | Syncthing 自带网页界面的端口（映射到容器的 8384） |
 | `SYNC_PORT` | `23000` | 同步端口（TCP + UDP），所有机器用同一个值；添加设备时地址没写端口就用它 |
 | `DISCOVERY_PORT` | `23001` | 本地发现端口（UDP，发现已被关闭，所以没有流量） |
-| `SYNCTHING_NAME` | `fb-amd64` / `fb-arm64` | 对方看到的设备名，每台机器不同（默认值取决于分支） |
+| `SYNCTHING_NAME` | `filebrowser` | 对方看到的设备名，**每台机器要不同** |
 | `PUID` / `PGID` | `0` / `0` | 容器运行的用户；服务 root 拥有的文件需要 0 |
-| `FB_TAG` | `amd64` / `arm64` | 固定 File Browser 镜像版本，例如 `2.63.23-fork.2-amd64` |
+| `FB_TAG` | `latest` | File Browser 镜像 tag，可固定版本，例如 `2.63.23-fork.2` |
 
 4. **数据**：`DATA_DIR` 挂到 `/srv`；`./config`、`./database` 是 File Browser 的配置和数据库；`./syncthing-config` 是 Syncthing 的配置和设备密钥。
 5. **镜像**：`syncthing/syncthing:2`（固定主版本，支持 amd64 和 arm64）；两个服务都写了 `platform`。
 6. **Syncthing 的网页界面**：发布在 `<HOST_IP>:<SYNCTHING_GUI_PORT>`，方便你查看或手动调整。**它在你设置密码之前没有任何保护**（在它的“设置 → GUI”里设置）。File Browser 用 API 密钥访问它，设置密码不影响。
-7. **从旧版本升级**：旧的 `.env` 里没有 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
+7. **常见错误**：`exec format error` 是镜像架构和机器不符，检查 `.env` 里的 `ARCH` 和 compose 文件里有没有被 heredoc 写死；`ports contains an invalid type` 是 `HOST_IP` 等变量为空（同样先检查 compose 文件是不是被 heredoc 展开过）；`.env` 里的注释请单独占一行。
+8. **从旧版本升级**：旧的 `.env` 里没有 `ARCH` 和 `HOST_IP`，需要补上；以前写死在 compose 里的 `100.64.0.7`、`/root`、`38002`、`23000` 等现在都是 `.env` 变量的默认值或需要你填的值。
 
 #### 挂载 `/root` 的安全说明
 
@@ -363,7 +367,7 @@ Syncthing 容器内部固定使用 22000（同步，TCP + QUIC/UDP）和 21027�
 
 - 后端新增：`syncthing/`（客户端）、`http/sync.go`、`http/permissions.go`（+ `permissions_unix.go` / `permissions_windows.go`）、`http/format.go`、`http/static_test.go`、`http/users_favorites_test.go`、`http/sync_test.go`、`http/permissions_test.go`、`http/format_test.go`、`users/favorites_test.go`；修改 `users/users.go`（`Favorites`、`FolderColors` 及校验）、`http/users.go`（校验失败返回 400）、`http/http.go`（注册 `/api/sync`）、`http/static.go`（向前端传 `EnableSync`）、`settings/settings.go` 和 `cmd/root.go`（运行时的 Syncthing 参数）。
 - 前端新增：`api/sync.ts`、`types/sync.d.ts`、`utils/{drop,favorites,folderColors,syncRate}.ts`、`api/{permissions,formatGo}.ts`、`utils/editor/{formatters,aceAssets,aceFiles}.ts`、`components/prompts/{FolderColor,SyncFolder,Permissions}.vue`、`components/settings/SyncDeviceForm.vue`、`views/settings/Sync.vue`；修改 `stores/auth.ts`、`Sidebar.vue`、`ListingItem.vue`、`FileListing.vue` 等。
-- 部署与发布新增：`Dockerfile.multiarch`、`docker/multiarch/entrypoint.sh`、`docker-compose.yml`、`.env.example`、`compose.multiarch.yaml`、`VERSION`、`CHANGES.md`、`scripts/{release,release-all,changes}.sh`。
+- 部署与发布新增：`Dockerfile.multiarch`、`docker/multiarch/entrypoint.sh`、`docker-compose.yml`、`.env.example`、`compose.multiarch.yaml`、`VERSION`、`CHANGES.md`、`scripts/{release,release-all,changes,init-env}.sh`。
 
 ### 开发与测试
 

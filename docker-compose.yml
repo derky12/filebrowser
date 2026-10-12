@@ -1,17 +1,20 @@
-# Private deployment (amd64 branch: main).
+# Private deployment. The same file serves the amd64 and the arm64 machine.
 #
-# Everything that differs per machine lives in .env (see .env.example): the
-# Tailscale address, the ports, the folder to serve. Create it once:
-#   cp .env.example .env     # then edit HOST_IP, DATA_DIR, ...
-#   echo "SYNCTHING_API_KEY=$(openssl rand -hex 24)" >> .env
+# Everything that differs per machine lives in .env: the architecture, the
+# Tailscale address, the ports, the folder to serve. Create it once with
+#   scripts/init-env.sh
+# (it detects the architecture and the Tailscale address and makes the key), or
+# copy .env.example by hand. Do NOT write this file or .env with an unquoted
+# heredoc (cat << EOF): the shell would replace every ${...} below on the spot.
 # Then:
 #   docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
 # (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
 # See the README for how folder syncing works.
 services:
   filebrowser:
-    image: q25459768/filebrowser:${FB_TAG:-amd64}
-    platform: linux/amd64
+    # The tag has an amd64 and an arm64 image; Docker takes the one of `platform`.
+    image: q25459768/filebrowser:${FB_TAG:-latest}
+    platform: linux/${ARCH:?set ARCH in .env (amd64 or arm64)}
     container_name: filebrowser
     restart: unless-stopped
     depends_on:
@@ -43,9 +46,9 @@ services:
   # until you set one in its Settings > GUI, so keep it on the Tailscale address.
   syncthing:
     image: syncthing/syncthing:2
-    platform: linux/amd64
+    platform: linux/${ARCH:?set ARCH in .env (amd64 or arm64)}
     container_name: filebrowser-syncthing
-    hostname: ${SYNCTHING_NAME:-fb-amd64} # the device name the other side sees; differs per machine
+    hostname: ${SYNCTHING_NAME:-filebrowser} # the device name the other side sees; differs per machine
     restart: unless-stopped
     environment:
       - PUID=${PUID:-0}
