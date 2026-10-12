@@ -6,12 +6,16 @@ interface SyncDevice {
   address: string;
   connected: boolean;
   paused: boolean;
+  inBytes: number;
+  outBytes: number;
 }
 
 interface SyncRemote {
   deviceID: string;
   connected: boolean;
   completion: number;
+  needBytes: number;
+  needItems: number;
 }
 
 interface SyncFolder {
@@ -25,6 +29,7 @@ interface SyncFolder {
   globalBytes: number;
   inSyncBytes: number;
   needBytes: number;
+  needFiles: number;
   error?: string;
   remotes: SyncRemote[];
 }
@@ -47,6 +52,7 @@ interface SyncPendingFolder {
 interface SyncStatus {
   deviceID: string;
   defaultPort: string;
+  time: number;
   devices: SyncDevice[];
   folders: SyncFolder[];
   pendingDevices: SyncPendingDevice[];

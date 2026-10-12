@@ -134,6 +134,10 @@
   },
   "permanent": "Permanent",
   "sync": {
+    "currentSpeed": "Current speed:",
+    "speed": "Speed",
+    "transferred": "Transferred",
+    "left": "{size} left | {size} left, {count} file | {size} left, {count} files",
     "title": "Sync",
     "syncFolder": "Sync folder",
     "thisDevice": "This device",

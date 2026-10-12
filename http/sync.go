@@ -53,12 +53,18 @@ type syncDeviceInfo struct {
 	Address   string `json:"address"`
 	Connected bool   `json:"connected"`
 	Paused    bool   `json:"paused"`
+	// Cumulative bytes received/sent since the connection started. Speeds are
+	// derived by the client from two polls.
+	InBytes  int64 `json:"inBytes"`
+	OutBytes int64 `json:"outBytes"`
 }
 
 type syncRemoteInfo struct {
 	DeviceID   string  `json:"deviceID"`
 	Connected  bool    `json:"connected"`
 	Completion float64 `json:"completion"`
+	NeedBytes  int64   `json:"needBytes"`
+	NeedItems  int     `json:"needItems"`
 }
 
 type syncFolderInfo struct {
@@ -72,6 +78,7 @@ type syncFolderInfo struct {
 	GlobalBytes int64            `json:"globalBytes"`
 	InSyncBytes int64            `json:"inSyncBytes"`
 	NeedBytes   int64            `json:"needBytes"`
+	NeedFiles   int              `json:"needFiles"`
 	Error       string           `json:"error,omitempty"`
 	Remotes     []syncRemoteInfo `json:"remotes"`
 }
@@ -94,6 +101,7 @@ type syncPendingFolderInfo struct {
 type syncStatus struct {
 	DeviceID       string                  `json:"deviceID"`
 	DefaultPort    string                  `json:"defaultPort"`
+	Time           int64                   `json:"time"` // server clock in ms, for transfer rates
 	Devices        []syncDeviceInfo        `json:"devices"`
 	Folders        []syncFolderInfo        `json:"folders"`
 	PendingDevices []syncPendingDeviceInfo `json:"pendingDevices"`
@@ -307,6 +315,7 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 	out := syncStatus{
 		DeviceID:       myID,
 		DefaultPort:    syncDefaultPort(d.server),
+		Time:           time.Now().UnixMilli(),
 		Devices:        []syncDeviceInfo{},
 		Folders:        []syncFolderInfo{},
 		PendingDevices: []syncPendingDeviceInfo{},
@@ -330,6 +339,8 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 			Address:   address,
 			Connected: connections[dev.DeviceID].Connected,
 			Paused:    dev.Paused,
+			InBytes:   connections[dev.DeviceID].InBytesTotal,
+			OutBytes:  connections[dev.DeviceID].OutBytesTotal,
 		})
 	}
 
@@ -359,6 +370,7 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 			info.GlobalBytes = status.GlobalBytes
 			info.InSyncBytes = status.InSyncBytes
 			info.NeedBytes = status.NeedBytes
+			info.NeedFiles = status.NeedFiles
 			info.Error = status.Error
 			if info.Error == "" && status.PullErrors > 0 {
 				info.Error = fmt.Sprintf("%d items failed to sync", status.PullErrors)
@@ -377,6 +389,8 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 			if remote.Connected && !f.Paused {
 				if completion, completionErr := c.Completion(ctx, f.ID, ref.DeviceID); completionErr == nil {
 					remote.Completion = completion.Completion
+					remote.NeedBytes = completion.NeedBytes
+					remote.NeedItems = completion.NeedItems
 				}
 			}
 			info.Remotes = append(info.Remotes, remote)

@@ -134,6 +134,10 @@
   },
   "permanent": "永久",
   "sync": {
+    "currentSpeed": "当前速度：",
+    "speed": "速度",
+    "transferred": "已传输",
+    "left": "剩余 {size}，{count} 个文件",
     "title": "同步",
     "syncFolder": "同步文件夹",
     "thisDevice": "本机",

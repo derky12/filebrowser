@@ -93,6 +93,7 @@ type FolderStatus struct {
 	GlobalBytes int64  `json:"globalBytes"`
 	InSyncBytes int64  `json:"inSyncBytes"`
 	NeedBytes   int64  `json:"needBytes"`
+	NeedFiles   int    `json:"needFiles"`
 	Errors      int    `json:"errors"`
 	PullErrors  int    `json:"pullErrors"`
 	Error       string `json:"error"`
@@ -102,6 +103,7 @@ type FolderStatus struct {
 type Completion struct {
 	Completion float64 `json:"completion"`
 	NeedBytes  int64   `json:"needBytes"`
+	NeedItems  int     `json:"needItems"`
 }
 
 // Connection is the connection state of a remote device.
@@ -109,6 +111,9 @@ type Connection struct {
 	Connected bool   `json:"connected"`
 	Paused    bool   `json:"paused"`
 	Address   string `json:"address"`
+	// Bytes transferred since the connection was established.
+	InBytesTotal  int64 `json:"inBytesTotal"`
+	OutBytesTotal int64 `json:"outBytesTotal"`
 }
 
 // PendingDevice is a device that tried to connect but is not configured yet.

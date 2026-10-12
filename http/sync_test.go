@@ -66,7 +66,7 @@ func (f *fakeSyncthing) serve(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/rest/system/status":
 		write(map[string]string{"myID": testSelfID})
 	case r.URL.Path == "/rest/system/connections":
-		write(map[string]interface{}{"connections": map[string]syncthing.Connection{testRemoteID: {Connected: true}}})
+		write(map[string]interface{}{"connections": map[string]syncthing.Connection{testRemoteID: {Connected: true, InBytesTotal: 1000, OutBytesTotal: 2000}}})
 	case r.URL.Path == "/rest/config/devices" && r.Method == http.MethodGet:
 		list := []syncthing.Device{}
 		for _, d := range f.devices {
@@ -100,9 +100,9 @@ func (f *fakeSyncthing) serve(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/rest/config/folders/") && r.Method == http.MethodDelete:
 		delete(f.folders, id)
 	case r.URL.Path == "/rest/db/status":
-		write(syncthing.FolderStatus{State: "idle", GlobalBytes: 10, InSyncBytes: 10})
+		write(syncthing.FolderStatus{State: "syncing", GlobalBytes: 10, InSyncBytes: 4, NeedBytes: 6, NeedFiles: 2})
 	case r.URL.Path == "/rest/db/completion":
-		write(syncthing.Completion{Completion: 100})
+		write(syncthing.Completion{Completion: 40, NeedBytes: 6, NeedItems: 2})
 	case r.URL.Path == "/rest/cluster/pending/devices" && r.Method == http.MethodGet:
 		write(f.pendingDevices)
 	case r.URL.Path == "/rest/cluster/pending/folders" && r.Method == http.MethodGet:
@@ -299,6 +299,12 @@ func TestSyncStatusMapsPathsAndPending(t *testing.T) {
 	if got.DefaultPort != "22000" {
 		t.Fatalf("defaultPort=%q, want 22000", got.DefaultPort)
 	}
+	if got.Time == 0 {
+		t.Fatal("status must carry the server time for rate calculations")
+	}
+	if d := got.Devices[0]; d.InBytes != 1000 || d.OutBytes != 2000 {
+		t.Fatalf("device transfer totals: %+v", d)
+	}
 	if got.DeviceID != testSelfID || len(got.Devices) != 1 || got.Devices[0].Name != "remote" || !got.Devices[0].Connected {
 		t.Fatalf("devices: %+v", got)
 	}
@@ -306,7 +312,7 @@ func TestSyncStatusMapsPathsAndPending(t *testing.T) {
 	for _, f := range got.Folders {
 		byID[f.ID] = f
 	}
-	if f := byID["fb-1"]; f.Path != "/docs" || f.External || f.Mode != syncModeOneWay || f.State != "idle" || len(f.Remotes) != 1 || f.Remotes[0].Completion != 100 {
+	if f := byID["fb-1"]; f.Path != "/docs" || f.External || f.Mode != syncModeOneWay || f.State != "syncing" || f.NeedBytes != 6 || f.NeedFiles != 2 || len(f.Remotes) != 1 || f.Remotes[0].Completion != 40 || f.Remotes[0].NeedBytes != 6 || f.Remotes[0].NeedItems != 2 {
 		t.Fatalf("fb-1: %+v", f)
 	}
 	if f := byID["ext"]; !f.External || f.Path != "/somewhere/else" {

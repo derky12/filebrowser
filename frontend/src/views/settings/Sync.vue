@@ -131,6 +131,16 @@
           <div class="card-title">
             <h2>{{ t("sync.folders") }}</h2>
           </div>
+          <div
+            class="card-content"
+            v-if="status.devices.some((d) => d.connected)"
+          >
+            <p class="sync-summary">
+              {{ t("sync.currentSpeed") }}
+              <span class="sync-speed">↓ {{ speed(totalRate.down) }}</span>
+              <span class="sync-speed">↑ {{ speed(totalRate.up) }}</span>
+            </p>
+          </div>
           <div class="card-content full" v-if="status.folders.length > 0">
             <table>
               <tr>
@@ -196,6 +206,8 @@
                 <th>{{ t("sync.deviceName") }}</th>
                 <th>{{ t("sync.deviceAddress") }}</th>
                 <th>{{ t("sync.state") }}</th>
+                <th>{{ t("sync.speed") }}</th>
+                <th>{{ t("sync.transferred") }}</th>
                 <th></th>
               </tr>
               <tr v-for="d in status.devices" :key="d.id">
@@ -207,6 +219,20 @@
                   <span :class="['sync-state', d.connected ? 'ok' : 'off']">{{
                     d.connected ? t("sync.connected") : t("sync.disconnected")
                   }}</span>
+                </td>
+                <td>
+                  <template v-if="d.connected && rates[d.id]">
+                    ↓ {{ speed(rates[d.id].down) }}<br />
+                    ↑ {{ speed(rates[d.id].up) }}
+                  </template>
+                  <template v-else>—</template>
+                </td>
+                <td>
+                  <template v-if="d.connected">
+                    ↓ {{ filesize(d.inBytes) }}<br />
+                    ↑ {{ filesize(d.outBytes) }}
+                  </template>
+                  <template v-else>—</template>
                 </td>
                 <td class="small">
                   <button
@@ -235,11 +261,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { sync as api } from "@/api";
 import { StatusError } from "@/api/utils";
 import { copy } from "@/utils/clipboard";
+import { filesize } from "@/utils";
+import { transferRate } from "@/utils/syncRate";
+import type { TransferRate, TransferSample } from "@/utils/syncRate";
 import Errors from "@/views/Errors.vue";
 import SyncDeviceForm from "@/components/settings/SyncDeviceForm.vue";
 
@@ -253,11 +282,15 @@ const acceptingDevice = ref<string | null>(null);
 const acceptingFolder = ref<string | null>(null);
 const acceptPath = ref("");
 const acceptMode = ref<"receive" | "twoway">("receive");
+const rates = ref<Record<string, TransferRate>>({});
+const samples = new Map<string, TransferSample>();
 let timer: number | undefined;
 
 const refresh = async () => {
   try {
-    status.value = await api.status();
+    const next = await api.status();
+    updateRates(next);
+    status.value = next;
     error.value = null;
   } catch (e) {
     if (status.value === null && e instanceof StatusError) {
@@ -265,6 +298,37 @@ const refresh = async () => {
     }
   }
 };
+
+// Remember the byte counters of this poll and derive the speed per device.
+const updateRates = (next: SyncStatus) => {
+  const updated: Record<string, TransferRate> = {};
+  for (const device of next.devices) {
+    const sample = {
+      time: next.time,
+      inBytes: device.inBytes,
+      outBytes: device.outBytes,
+    };
+    const rate = device.connected
+      ? transferRate(samples.get(device.id), sample)
+      : null;
+    if (rate) updated[device.id] = rate;
+    samples.set(device.id, sample);
+  }
+  rates.value = updated;
+};
+
+const speed = (bytesPerSecond: number) =>
+  `${filesize(Math.round(bytesPerSecond))}/s`;
+
+const totalRate = computed(() => {
+  let down = 0;
+  let up = 0;
+  for (const rate of Object.values(rates.value)) {
+    down += rate.down;
+    up += rate.up;
+  }
+  return { down, up };
+});
 
 onMounted(() => {
   refresh();
@@ -323,6 +387,11 @@ const stateClass = (folder: SyncFolder) => {
   return "busy";
 };
 
+const remaining = (bytes: number, files: number) =>
+  bytes > 0
+    ? ` · ${t("sync.left", { size: filesize(bytes), count: files }, files)}`
+    : "";
+
 const stateLabel = (folder: SyncFolder) => {
   if (folder.error) return `${t("sync.error")}: ${folder.error}`;
   if (folder.paused) return t("sync.paused");
@@ -330,12 +399,16 @@ const stateLabel = (folder: SyncFolder) => {
     return t("sync.disconnected");
   if (folder.state === "idle" && minCompletion(folder) >= 100)
     return t("sync.upToDate");
-  if (folder.state === "idle")
-    return t("sync.remoteSyncing", {
-      percent: Math.floor(minCompletion(folder)),
-    });
+  if (folder.state === "idle") {
+    const bytes = folder.remotes.reduce((sum, r) => sum + r.needBytes, 0);
+    const items = folder.remotes.reduce((sum, r) => sum + r.needItems, 0);
+    return (
+      t("sync.remoteSyncing", { percent: Math.floor(minCompletion(folder)) }) +
+      remaining(bytes, items)
+    );
+  }
   if (folder.state === "scanning") return t("sync.scanning");
-  return t("sync.syncing");
+  return t("sync.syncing") + remaining(folder.needBytes, folder.needFiles);
 };
 
 const togglePause = (folder: SyncFolder) =>
@@ -431,6 +504,16 @@ const acceptFolder = async (p: SyncPendingFolder) => {
   display: block;
   margin-top: 0.2em;
   opacity: 0.7;
+}
+
+.sync-summary {
+  margin: 0;
+}
+
+.sync-speed {
+  margin-left: 1em;
+  font-weight: bold;
+  white-space: nowrap;
 }
 
 .sync-state.ok {
