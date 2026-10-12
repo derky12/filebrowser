@@ -20,6 +20,11 @@
               {{ t("sync.title") }}
             </li></router-link
           >
+          <router-link to="/settings/activity" v-if="user?.perm.admin"
+            ><li :class="{ active: $route.path === '/settings/activity' }">
+              {{ t("activity.title") }}
+            </li></router-link
+          >
           <router-link to="/settings/global" v-if="user?.perm.admin"
             ><li :class="{ active: $route.path === '/settings/global' }">
               {{ t("settings.globalSettings") }}

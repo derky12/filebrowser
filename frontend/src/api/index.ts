@@ -7,6 +7,7 @@ import search from "./search";
 import commands from "./commands";
 import * as sync from "./sync";
 import * as permissions from "./permissions";
+import * as activity from "./activity";
 
 export {
   files,
@@ -18,4 +19,5 @@ export {
   search,
   sync,
   permissions,
+  activity,
 };
