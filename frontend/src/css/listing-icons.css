@@ -248,6 +248,10 @@
 .file-icons [data-dir="true"] i::before {
   content: "folder";
 }
-.file-icons [aria-selected="true"] i {
+.file-icons [data-dir="true"][data-color] i {
+  color: var(--folder-color);
+}
+.file-icons [aria-selected="true"] i,
+.file-icons [data-dir="true"][data-color][aria-selected="true"] i {
   color: var(--iconSecondary);
 }

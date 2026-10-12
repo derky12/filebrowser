@@ -57,3 +57,37 @@ func TestCleanFavoritesViaClean(t *testing.T) {
 		t.Fatalf("got %v", u.Favorites)
 	}
 }
+
+func TestCleanFolderColors(t *testing.T) {
+	t.Run("normalizes paths and colors", func(t *testing.T) {
+		got, err := cleanFolderColors(map[string]string{"/a/b/": "#FF0000", "/c": "#00ff00"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := map[string]string{"/a/b": "#ff0000", "/c": "#00ff00"}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	})
+
+	t.Run("nil becomes empty map", func(t *testing.T) {
+		got, err := cleanFolderColors(nil)
+		if err != nil || got == nil || len(got) != 0 {
+			t.Fatalf("got %v, %v", got, err)
+		}
+	})
+
+	for name, in := range map[string]map[string]string{
+		"relative path": {"a": "#ff0000"},
+		"named color":   {"/a": "red"},
+		"short hex":     {"/a": "#f00"},
+		"css injection": {"/a": "#ff0000;background:url(x)"},
+		"empty color":   {"/a": ""},
+	} {
+		t.Run("rejects "+name, func(t *testing.T) {
+			if _, err := cleanFolderColors(in); err == nil {
+				t.Fatal("expected error")
+			}
+		})
+	}
+}

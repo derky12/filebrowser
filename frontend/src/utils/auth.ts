@@ -17,7 +17,7 @@ export function parseToken(token: string) {
   const authStore = useAuthStore();
   authStore.jwt = token;
   authStore.setUser(data.user);
-  authStore.loadFavorites().catch((e) => console.warn("favorites:", e));
+  authStore.loadUserData().catch((e) => console.warn("user data:", e));
 
   // proxy auth with custom logout subject to unknown external timeout
   if (logoutPage !== "/login" && authMethod === "proxy") {

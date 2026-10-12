@@ -33,7 +33,9 @@
           @dragleave="dragOverFavorite = null"
           @drop="favoriteDrop($event, favorite)"
         >
-          <i class="material-icons">folder_special</i>
+          <i class="material-icons" :style="{ color: folderColor(favorite) }"
+            >folder_special</i
+          >
           <span>{{ favoriteName(favorite) }}</span>
           <button
             class="favorite-remove"
@@ -227,6 +229,9 @@ export default {
       } finally {
         return Object.assign(this.usage, usageStats);
       }
+    },
+    folderColor(favorite) {
+      return this.user.folderColors?.[favorite];
     },
     openFavorite(favorite) {
       this.$router.push({ path: favoriteToUrl(favorite) });

@@ -16,6 +16,8 @@
     @touchcancel="handleTouchCancel"
     @touchmove="handleTouchMove"
     :data-dir="isDir"
+    :data-color="folderColor ? '' : null"
+    :style="folderColor ? { '--folder-color': folderColor } : undefined"
     :data-type="type"
     :aria-label="name"
     :aria-selected="isSelected"
@@ -31,6 +33,18 @@
       <i v-else class="material-icons"></i>
     </div>
 
+    <button
+      v-if="showStar"
+      class="folder-color-button"
+      :title="$t('prompts.folderColor')"
+      :aria-label="$t('prompts.folderColor')"
+      @click.stop="chooseColor"
+      @dblclick.stop
+      @mousedown.stop
+      @touchstart.stop
+    >
+      <i class="material-icons">palette</i>
+    </button>
     <button
       v-if="showStar"
       class="favorite-star"
@@ -62,6 +76,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from "@/stores/auth";
+import { useLayoutStore } from "@/stores/layout";
 import { useFileStore } from "@/stores/file";
 
 import { enableThumbs } from "@/utils/constants";
@@ -97,6 +112,7 @@ const props = defineProps<{
 }>();
 
 const authStore = useAuthStore();
+const layoutStore = useLayoutStore();
 const fileStore = useFileStore();
 
 const singleClick = computed(
@@ -124,6 +140,19 @@ const canDrop = computed(() => {
 const favoritePath = computed(() => urlToFavorite(props.url));
 const showStar = computed(() => props.isDir && !props.readOnly);
 const isFavorite = computed(() => authStore.isFavorite(favoritePath.value));
+
+const folderColor = computed(() =>
+  props.isDir && !props.readOnly
+    ? authStore.folderColor(favoritePath.value)
+    : undefined
+);
+
+const chooseColor = () => {
+  layoutStore.showHover({
+    prompt: "folderColor",
+    props: { path: favoritePath.value },
+  });
+};
 
 const toggleFavorite = () => {
   authStore.toggleFavorite(favoritePath.value).catch($showError);

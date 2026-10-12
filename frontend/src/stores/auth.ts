@@ -27,21 +27,28 @@ export const useAuthStore = defineStore("auth", {
       }
 
       setLocale(user.locale || detectLocale());
-      // The user decoded from the JWT does not carry the favorites, so keep
-      // the ones already loaded when the token is renewed.
-      const favorites =
-        user.favorites ??
-        (this.user?.id === user.id ? this.user.favorites : undefined);
-      this.user = { ...user, favorites } as IUser;
+      // The user decoded from the JWT does not carry the favorites and folder
+      // colors, so keep the ones already loaded when the token is renewed.
+      const previous = this.user?.id === user.id ? this.user : null;
+      this.user = {
+        ...user,
+        favorites: user.favorites ?? previous?.favorites,
+        folderColors: user.folderColors ?? previous?.folderColors,
+      } as IUser;
     },
-    // Fetches the favorites once per session; the JWT does not include them.
-    async loadFavorites() {
+    // Fetches the favorites and folder colors once per session; the JWT does
+    // not include them.
+    async loadUserData() {
       if (this.user === null || this.user.favorites !== undefined) return;
 
       const id = this.user.id;
-      const { favorites } = await users.get(id);
+      const { favorites, folderColors } = await users.get(id);
       if (this.user?.id === id && this.user.favorites === undefined) {
-        this.user = { ...this.user, favorites: favorites ?? [] };
+        this.user = {
+          ...this.user,
+          favorites: favorites ?? [],
+          folderColors: folderColors ?? {},
+        };
       }
     },
     updateUser(user: Partial<IUser>) {
@@ -69,6 +76,32 @@ export const useAuthStore = defineStore("auth", {
         await users.update({ id: this.user.id, favorites }, ["favorites"]);
       } catch (e) {
         this.user = { ...this.user, favorites: previous } as IUser;
+        throw e;
+      }
+    },
+    folderColor(path: string): string | undefined {
+      return this.user?.folderColors?.[path];
+    },
+    // Sets (or, with null, clears) the color of a folder, persisting it on the
+    // server and rolling back the local state if saving fails.
+    async setFolderColor(path: string, color: string | null) {
+      if (this.user === null) return;
+
+      const previous = this.user.folderColors ?? {};
+      const folderColors = { ...previous };
+      if (color === null) {
+        delete folderColors[path];
+      } else {
+        folderColors[path] = color;
+      }
+
+      this.user = { ...this.user, folderColors };
+      try {
+        await users.update({ id: this.user.id, folderColors }, [
+          "folderColors",
+        ]);
+      } catch (e) {
+        this.user = { ...this.user, folderColors: previous } as IUser;
         throw e;
       }
     },

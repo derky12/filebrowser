@@ -134,6 +134,8 @@
   },
   "permanent": "永久",
   "prompts": {
+    "folderColor": "文件夹颜色",
+    "folderColorDefault": "默认",
     "copy": "复制",
     "copyMessage": "请选择目标目录：",
     "currentlyNavigating": "当前目录：",

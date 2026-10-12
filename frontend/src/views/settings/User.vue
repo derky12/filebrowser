@@ -103,6 +103,7 @@ const fetchData = async () => {
         rules: [],
         lockPassword: false,
         favorites: [],
+        folderColors: {},
         id: 0,
       };
     } else {

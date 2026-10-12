@@ -134,6 +134,8 @@
   },
   "permanent": "Permanent",
   "prompts": {
+    "folderColor": "Folder color",
+    "folderColorDefault": "Default",
     "copy": "Copy",
     "copyMessage": "Choose the location to copy your files to:",
     "currentlyNavigating": "Currently navigating on:",

@@ -3,6 +3,7 @@ package users
 import (
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	fberrors "github.com/filebrowser/filebrowser/v2/errors"
@@ -39,10 +40,17 @@ type User struct {
 	DateFormat            bool          `json:"dateFormat"`
 	AceEditorTheme        string        `json:"aceEditorTheme"`
 	Favorites             []string      `json:"favorites"`
+	// FolderColors maps a folder path to a "#rrggbb" display color.
+	FolderColors map[string]string `json:"folderColors"`
 }
 
 // MaxFavorites is the maximum number of favorite folders a user can keep.
 const MaxFavorites = 100
+
+// MaxFolderColors is the maximum number of colored folders a user can keep.
+const MaxFolderColors = 500
+
+var folderColorPattern = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
 // GetRules implements rules.Provider.
 func (u *User) GetRules() []rules.Rule {
@@ -58,6 +66,7 @@ var checkableFields = []string{
 	"Sorting",
 	"Rules",
 	"Favorites",
+	"FolderColors",
 }
 
 // Clean cleans up a user and verifies if all its fields
@@ -99,6 +108,12 @@ func (u *User) Clean(baseScope string, followExternalSymlinks bool, fields ...st
 				return err
 			}
 			u.Favorites = favorites
+		case "FolderColors":
+			colors, err := cleanFolderColors(u.FolderColors)
+			if err != nil {
+				return err
+			}
+			u.FolderColors = colors
 		}
 	}
 
@@ -133,6 +148,30 @@ func cleanFavorites(favorites []string) ([]string, error) {
 
 	if len(cleaned) > MaxFavorites {
 		return nil, fberrors.ErrInvalidRequestParams
+	}
+
+	return cleaned, nil
+}
+
+// cleanFolderColors normalizes the folder colors of a user: paths become
+// cleaned absolute paths and every color must be a "#rrggbb" hex value.
+func cleanFolderColors(colors map[string]string) (map[string]string, error) {
+	if len(colors) > MaxFolderColors {
+		return nil, fberrors.ErrInvalidRequestParams
+	}
+
+	cleaned := make(map[string]string, len(colors))
+	for folder, color := range colors {
+		if !strings.HasPrefix(folder, "/") {
+			return nil, fberrors.ErrInvalidRequestParams
+		}
+
+		color = strings.ToLower(color)
+		if !folderColorPattern.MatchString(color) {
+			return nil, fberrors.ErrInvalidRequestParams
+		}
+
+		cleaned[path.Clean(folder)] = color
 	}
 
 	return cleaned, nil
