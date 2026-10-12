@@ -98,6 +98,7 @@ var userGetHandler = withSelfOrAdmin(func(w http.ResponseWriter, r *http.Request
 	}
 
 	u.Password = ""
+	u.ShowDotfiles = u.EffectiveShowDotfiles()
 	if !d.user.Perm.Admin {
 		u.Scope = ""
 	}

@@ -9,6 +9,7 @@ interface IUser {
   rules: IRule[];
   lockPassword: boolean;
   hideDotfiles: boolean;
+  showDotfiles?: string[];
   singleClick: boolean;
   redirectAfterCopyMove: boolean;
   dateFormat: boolean;

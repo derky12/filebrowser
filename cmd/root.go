@@ -96,6 +96,7 @@ func init() {
 	flags.String("syncthingUrl", "", "base URL of a Syncthing instance to enable folder syncing (e.g. http://syncthing:8384)")
 	flags.String("syncthingApiKey", "", "API key of the Syncthing instance")
 	flags.String("syncthingPort", "22000", "sync port of the other Syncthing devices, used when a device address has no port")
+	flags.String("syncthingGuiPort", "", "port the Syncthing web interface is published on, only used for the link in the Sync tab")
 	flags.Bool("webdavEnabled", false, "serve folders shared from the web interface over WebDAV (needs --webdavPassword)")
 	flags.String("webdavPort", "8090", "port the WebDAV server listens on")
 	flags.String("webdavHostPort", "", "port the WebDAV server is published on, only used to show URLs")
@@ -404,6 +405,7 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 	server.SyncthingAPIKey = v.GetString("syncthingApiKey")
 	server.SyncthingPrivate = v.GetBool("syncthingPrivateNetwork")
 	server.SyncthingPort = v.GetString("syncthingPort")
+	server.SyncthingGUIPort = v.GetString("syncthingGuiPort")
 	server.ActivityDays = v.GetInt("activityDays")
 	server.WebDAV = v.GetBool("webdavEnabled")
 	server.WebDAVPort = v.GetString("webdavPort")
@@ -506,8 +508,9 @@ func quickSetup(v *viper.Viper, s *storage.Storage) error {
 		Defaults: settings.UserDefaults{
 			Scope:                 ".",
 			Locale:                "en",
-			SingleClick:           false,
+			SingleClick:           true,
 			RedirectAfterCopyMove: true,
+			HideDotfiles:          true,
 			AceEditorTheme:        v.GetString("defaults.aceEditorTheme"),
 			Perm: users.Permissions{
 				Admin:    false,

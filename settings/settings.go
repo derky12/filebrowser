@@ -105,6 +105,9 @@ type Server struct {
 	// SyncthingPort is the sync port other devices listen on, used when a
 	// device address is entered without one.
 	SyncthingPort string `json:"-"`
+	// SyncthingGUIPort is the host port the Syncthing web interface is
+	// published on, only used to link to it from the Sync tab.
+	SyncthingGUIPort string `json:"-"`
 
 	// WebDAV server, see http/webdav.go. Runtime-only, like the Syncthing settings.
 	WebDAV            bool   `json:"-"`

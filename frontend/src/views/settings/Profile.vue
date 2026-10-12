@@ -11,6 +11,17 @@
             <input type="checkbox" name="hideDotfiles" v-model="hideDotfiles" />
             {{ t("settings.hideDotfiles") }}
           </p>
+          <div v-if="hideDotfiles" class="show-dotfiles">
+            <label for="showDotfiles">{{ t("settings.showDotfiles") }}</label>
+            <textarea
+              id="showDotfiles"
+              class="input input--block"
+              rows="4"
+              spellcheck="false"
+              v-model="showDotfiles"
+            ></textarea>
+            <small>{{ t("settings.showDotfilesHelp") }}</small>
+          </div>
           <p>
             <input type="checkbox" name="singleClick" v-model="singleClick" />
             {{ t("settings.singleClick") }}
@@ -123,6 +134,7 @@ const passwordConf = ref<string>("");
 const currentPassword = ref<string>("");
 const isCurrentPasswordRequired = ref<boolean>(false);
 const hideDotfiles = ref<boolean>(false);
+const showDotfiles = ref<string>("");
 const singleClick = ref<boolean>(false);
 const redirectAfterCopyMove = ref<boolean>(false);
 const dateFormat = ref<boolean>(false);
@@ -152,6 +164,13 @@ onMounted(async () => {
   redirectAfterCopyMove.value = authStore.user.redirectAfterCopyMove;
   dateFormat.value = authStore.user.dateFormat;
   aceEditorTheme.value = authStore.user.aceEditorTheme;
+  try {
+    // The patterns are not part of the login token, so ask the server.
+    const full = await api.get(authStore.user.id);
+    showDotfiles.value = (full.showDotfiles ?? []).join("\n");
+  } catch (e: any) {
+    $showError(e);
+  }
   layoutStore.loading = false;
   isCurrentPasswordRequired.value = authMethod == "json";
 
@@ -196,6 +215,10 @@ const updateSettings = async (event: Event) => {
       id: authStore.user.id,
       locale: locale.value,
       hideDotfiles: hideDotfiles.value,
+      showDotfiles: showDotfiles.value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== ""),
       singleClick: singleClick.value,
       redirectAfterCopyMove: redirectAfterCopyMove.value,
       dateFormat: dateFormat.value,
@@ -205,6 +228,7 @@ const updateSettings = async (event: Event) => {
     await api.update(data, [
       "locale",
       "hideDotfiles",
+      "showDotfiles",
       "singleClick",
       "redirectAfterCopyMove",
       "dateFormat",

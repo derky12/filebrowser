@@ -52,6 +52,7 @@ interface SyncPendingFolder {
 interface SyncStatus {
   deviceID: string;
   defaultPort: string;
+  guiPort?: string;
   time: number;
   devices: SyncDevice[];
   folders: SyncFolder[];

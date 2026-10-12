@@ -10,6 +10,13 @@ in the image label `com.filebrowser.fork.changes`
 Add a section here before every release (`scripts/release.sh` refuses to run
 without one) and bump `VERSION`.
 
+## 2.63.23-fork.4 (2026-10-13)
+
+- Sync tab: a button opens the Syncthing web interface (needs FB_SYNCTHING_GUI_PORT, which docker-compose.yml now sets from SYNCTHING_GUI_PORT; no button without it).
+- Settings > Profile: dotfiles that stay visible while "Hide dotfiles" is on, a list of names with * wildcards (default .env*, .git*, .dockerignore; .trash stays hidden).
+- New installs default to hiding dotfiles, single click and redirect after copy/move; existing users keep their settings.
+- The "File Browser is being archived" notice is removed from the Settings pages.
+
 ## 2.63.23-fork.3 (2026-10-12)
 
 - WebDAV: right click a folder > Share as WebDAV (read-only by default), manage the shares in Settings > WebDAV. One WebDAV server with a user name and password from .env (WEBDAV_ENABLED, WEBDAV_USER, WEBDAV_PASSWORD, WEBDAV_BIND_IP, WEBDAV_PORT), shares appear as top level folders, each confined to its folder; changes are logged and wrong passwords are limited per client address.

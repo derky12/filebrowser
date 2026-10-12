@@ -80,3 +80,23 @@ func TestUserPutFolderColorsRejectsNonHexColor(t *testing.T) {
 		t.Fatalf("folderColors=%v, want none saved", got)
 	}
 }
+
+func TestUserPutShowDotfilesAllowedForNonAdmin(t *testing.T) {
+	rec, saved := putUserField(t, "showDotfiles", `"showDotfiles":[" .env* ",".env*",".git"]`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body)
+	}
+	if got := saved().ShowDotfiles; len(got) != 2 || got[0] != ".env*" || got[1] != ".git" {
+		t.Fatalf("showDotfiles=%v", got)
+	}
+}
+
+func TestUserPutShowDotfilesRejectsPath(t *testing.T) {
+	rec, saved := putUserField(t, "showDotfiles", `"showDotfiles":["a/b"]`)
+	if rec.Code == http.StatusOK {
+		t.Fatalf("status=%d, want an error", rec.Code)
+	}
+	if got := saved().ShowDotfiles; got != nil {
+		t.Fatalf("showDotfiles=%v, want none saved", got)
+	}
+}

@@ -26,6 +26,7 @@ services:
       - FB_SYNCTHING_API_KEY=${SYNCTHING_API_KEY}
       - FB_SYNCTHING_PRIVATE_NETWORK=true
       - FB_SYNCTHING_PORT=${SYNC_PORT}
+      - FB_SYNCTHING_GUI_PORT=${SYNCTHING_GUI_PORT}
       # WebDAV (optional, off unless WEBDAV_ENABLED=true): the container always
       # listens on 8090; the published port is WEBDAV_PORT below.
       - FB_WEBDAV_ENABLED=${WEBDAV_ENABLED:-false}

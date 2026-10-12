@@ -20,6 +20,16 @@
                 <i class="material-icons">content_paste</i>
               </button>
             </p>
+            <p v-if="guiUrl">
+              <a
+                class="button"
+                :href="guiUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ t("sync.openGui") }}
+              </a>
+            </p>
           </div>
         </div>
 
@@ -374,6 +384,14 @@ const $showSuccess = inject<IToastSuccess>("$showSuccess")!;
 const { t } = useI18n();
 
 const status = ref<SyncStatus | null>(null);
+
+// The Syncthing web interface is published on the same host as this page, on
+// its own port; it speaks plain HTTP unless the user turned TLS on there.
+const guiUrl = computed(() =>
+  status.value?.guiPort
+    ? `http://${window.location.hostname}:${status.value.guiPort}/`
+    : ""
+);
 const conflicts = ref<SyncConflict[]>([]);
 const limits = ref<SyncLimits | null>(null);
 const layoutStore = useLayoutStore();

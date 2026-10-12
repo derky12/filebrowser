@@ -37,11 +37,49 @@ type User struct {
 	Fs                    afero.Fs      `json:"-" yaml:"-"`
 	Rules                 []rules.Rule  `json:"rules"`
 	HideDotfiles          bool          `json:"hideDotfiles"`
-	DateFormat            bool          `json:"dateFormat"`
-	AceEditorTheme        string        `json:"aceEditorTheme"`
-	Favorites             []string      `json:"favorites"`
+	// ShowDotfiles lists name patterns (path.Match, tested against the base
+	// name) of dotfiles that stay visible while HideDotfiles is on. nil means
+	// "never set" and falls back to DefaultShowDotfiles; an empty list means
+	// the user cleared it.
+	ShowDotfiles   []string `json:"showDotfiles"`
+	DateFormat     bool     `json:"dateFormat"`
+	AceEditorTheme string   `json:"aceEditorTheme"`
+	Favorites      []string `json:"favorites"`
 	// FolderColors maps a folder path to a "#rrggbb" display color.
 	FolderColors map[string]string `json:"folderColors"`
+}
+
+// DefaultShowDotfiles is the ShowDotfiles list of users that never set one.
+// The trash (.trash) is deliberately not in it.
+var DefaultShowDotfiles = []string{".env*", ".git*", ".dockerignore"}
+
+// MaxShowDotfiles is the maximum number of dotfile patterns a user can keep.
+const MaxShowDotfiles = 100
+
+// EffectiveShowDotfiles returns the dotfile patterns that stay visible.
+func (u *User) EffectiveShowDotfiles() []string {
+	if u.ShowDotfiles == nil {
+		return DefaultShowDotfiles
+	}
+
+	return u.ShowDotfiles
+}
+
+// DotfileHidden reports whether HideDotfiles hides the item at p: its base name
+// starts with a dot and is not covered by a ShowDotfiles pattern.
+func (u *User) DotfileHidden(p string) bool {
+	if !u.HideDotfiles || !rules.MatchHidden(p) {
+		return false
+	}
+
+	base := path.Base(filepath.ToSlash(p))
+	for _, pattern := range u.EffectiveShowDotfiles() {
+		if ok, _ := path.Match(pattern, base); ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // MaxFavorites is the maximum number of favorite folders a user can keep.
@@ -67,6 +105,7 @@ var checkableFields = []string{
 	"Rules",
 	"Favorites",
 	"FolderColors",
+	"ShowDotfiles",
 }
 
 // Clean cleans up a user and verifies if all its fields
@@ -108,6 +147,14 @@ func (u *User) Clean(baseScope string, followExternalSymlinks bool, fields ...st
 				return err
 			}
 			u.Favorites = favorites
+		case "ShowDotfiles":
+			if u.ShowDotfiles != nil {
+				patterns, err := cleanShowDotfiles(u.ShowDotfiles)
+				if err != nil {
+					return err
+				}
+				u.ShowDotfiles = patterns
+			}
 		case "FolderColors":
 			colors, err := cleanFolderColors(u.FolderColors)
 			if err != nil {
@@ -124,6 +171,41 @@ func (u *User) Clean(baseScope string, followExternalSymlinks bool, fields ...st
 	}
 
 	return nil
+}
+
+// cleanShowDotfiles trims the patterns, drops blanks and duplicates, and
+// rejects malformed patterns and patterns that name a path.
+func cleanShowDotfiles(patterns []string) ([]string, error) {
+	cleaned := make([]string, 0, len(patterns))
+	seen := make(map[string]struct{}, len(patterns))
+
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+
+		if strings.ContainsAny(pattern, "/\\") {
+			return nil, fberrors.ErrInvalidRequestParams
+		}
+
+		if _, err := path.Match(pattern, ""); err != nil {
+			return nil, fberrors.ErrInvalidRequestParams
+		}
+
+		if _, ok := seen[pattern]; ok {
+			continue
+		}
+
+		seen[pattern] = struct{}{}
+		cleaned = append(cleaned, pattern)
+	}
+
+	if len(cleaned) > MaxShowDotfiles {
+		return nil, fberrors.ErrInvalidRequestParams
+	}
+
+	return cleaned, nil
 }
 
 // cleanFavorites normalizes the favorite folders of a user: every entry becomes

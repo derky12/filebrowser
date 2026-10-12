@@ -101,6 +101,7 @@ type syncPendingFolderInfo struct {
 type syncStatus struct {
 	DeviceID       string                  `json:"deviceID"`
 	DefaultPort    string                  `json:"defaultPort"`
+	GUIPort        string                  `json:"guiPort,omitempty"`
 	Time           int64                   `json:"time"` // server clock in ms, for transfer rates
 	Devices        []syncDeviceInfo        `json:"devices"`
 	Folders        []syncFolderInfo        `json:"folders"`
@@ -315,6 +316,7 @@ var syncStatusHandler = withSync(func(w http.ResponseWriter, r *http.Request, d 
 	out := syncStatus{
 		DeviceID:       myID,
 		DefaultPort:    syncDefaultPort(d.server),
+		GUIPort:        d.server.SyncthingGUIPort,
 		Time:           time.Now().UnixMilli(),
 		Devices:        []syncDeviceInfo{},
 		Folders:        []syncFolderInfo{},

@@ -8,7 +8,6 @@ import (
 
 	"github.com/tomasen/realip"
 
-	"github.com/filebrowser/filebrowser/v2/rules"
 	"github.com/filebrowser/filebrowser/v2/runner"
 	"github.com/filebrowser/filebrowser/v2/settings"
 	"github.com/filebrowser/filebrowser/v2/storage"
@@ -35,7 +34,7 @@ type data struct {
 
 // Check implements rules.Checker.
 func (d *data) Check(path string) bool {
-	if d.user.HideDotfiles && rules.MatchHidden(d.rulePath(path)) {
+	if d.user.DotfileHidden(d.rulePath(path)) {
 		return false
 	}
 
