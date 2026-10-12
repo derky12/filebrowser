@@ -192,24 +192,30 @@ const failed = computed(() => hasErrors(rows.value));
 
 const apply = async () => {
   busy.value = true;
-  const url = (name: string) => folderUrl.value + encodeURIComponent(name);
+
+  // Everything is read up front: renaming closes this prompt, after which its
+  // props are gone.
+  const base = folderUrl.value;
+  const steps = renameSteps(rows.value);
+  const count = changed.value.length;
+  const url = (name: string) => base + encodeURIComponent(name);
 
   try {
-    for (const step of renameSteps(rows.value)) {
+    for (const step of steps) {
       await api.move(
         [{ from: url(step.from), to: url(step.to) }],
         false,
         false
       );
     }
-    $showSuccess(t("batch.done", { n: changed.value.length }));
-    fileStore.reload = true;
-    layoutStore.closeHovers();
+    $showSuccess(t("batch.done", { n: count }));
   } catch (e) {
     $showError(e as Error);
-    fileStore.reload = true;
-    busy.value = false;
   }
+
+  fileStore.reload = true;
+  layoutStore.closeHovers();
+  busy.value = false;
 };
 </script>
 

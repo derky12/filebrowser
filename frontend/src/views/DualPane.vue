@@ -55,7 +55,11 @@
           >
             <i class="material-icons">arrow_upward</i>
           </button>
-          <nav class="pane-crumbs" :aria-label="t('dual.path')">
+          <div
+            class="pane-crumbs"
+            role="navigation"
+            :aria-label="t('dual.path')"
+          >
             <a @click.stop="go(side, '/')">/</a>
             <template
               v-for="crumb in crumbsOf(panes[side].path)"
@@ -64,7 +68,7 @@
               <span>›</span>
               <a @click.stop="go(side, crumb.path)">{{ crumb.name }}</a>
             </template>
-          </nav>
+          </div>
           <span class="pane-count">{{
             t("dual.selected", { n: panes[side].selected.size })
           }}</span>

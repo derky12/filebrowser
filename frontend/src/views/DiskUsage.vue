@@ -13,13 +13,13 @@
     </header-bar>
 
     <div class="du-content">
-      <nav class="du-crumbs" aria-label="path">
+      <div class="du-crumbs" role="navigation" aria-label="path">
         <router-link to="/du/">/</router-link>
         <template v-for="crumb in crumbs" :key="crumb.path">
           <span>›</span>
           <router-link :to="duLink(crumb.path)">{{ crumb.name }}</router-link>
         </template>
-      </nav>
+      </div>
 
       <p v-if="loading" class="du-status">
         <span class="spinner small"></span> {{ t("du.measuring") }}
