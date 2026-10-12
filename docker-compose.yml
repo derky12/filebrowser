@@ -1,21 +1,15 @@
-# Private deployment (amd64 branch: main). Open http://100.64.0.7:38002 (Tailscale address).
-# Pre-built image: docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d
-#   docker compose -f docker-compose.yml up -d --build
-# (-f is required: the repo also ships the upstream compose.yaml, which wins otherwise.)
 services:
   filebrowser:
-    build:
-      context: .
-      dockerfile: Dockerfile.multiarch
     image: q25459768/filebrowser:amd64
     container_name: filebrowser
     restart: unless-stopped
     environment:
-      PUID: 1000
-      PGID: 1000
+      - PUID=0
+      - PGID=0
+      - FB_NOAUTH=true
     ports:
-      - "100.64.0.7:38002:80"
+      - "100.64.0.7:38002:80" #修改成实际地址
     volumes:
-      - ./srv:/srv
+      - /root:/srv
       - ./config:/config
       - ./database:/database
