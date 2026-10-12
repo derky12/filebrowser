@@ -7,6 +7,15 @@
       <p v-else>
         {{ $t("prompts.deleteMessageMultiple", { count: selectedCount }) }}
       </p>
+      <template v-if="enableTrash">
+        <p class="trash-note" v-if="!permanent">
+          {{ $t("trash.movedNote") }}
+        </p>
+        <label class="trash-permanent">
+          <input type="checkbox" v-model="permanent" />
+          {{ $t("trash.permanent") }}
+        </label>
+      </template>
     </div>
     <div class="card-action">
       <button
@@ -37,12 +46,17 @@ import { mapActions, mapState, mapWritableState } from "pinia";
 import { files as api } from "@/api";
 import buttons from "@/utils/buttons";
 import { useFileStore } from "@/stores/file";
+import { enableTrash } from "@/utils/constants";
 import { useLayoutStore } from "@/stores/layout";
 
 export default {
   name: "delete",
-  inject: ["$showError"],
+  inject: ["$showError", "$showSuccess"],
+  data() {
+    return { permanent: false };
+  },
   computed: {
+    enableTrash: () => enableTrash,
     ...mapState(useFileStore, [
       "isListing",
       "selectedCount",
@@ -54,12 +68,23 @@ export default {
   },
   methods: {
     ...mapActions(useLayoutStore, ["closeHovers"]),
+    // With the trash on, an item answered "deleted" was too big to keep.
+    noteTooLarge(responses) {
+      if (
+        enableTrash &&
+        !this.permanent &&
+        responses.some((r) => r?.headers?.get("X-Trash") === "deleted")
+      ) {
+        this.$showSuccess(this.$t("trash.tooLarge"));
+      }
+    },
     submit: async function () {
       buttons.loading("delete");
 
       try {
         if (!this.isListing) {
-          await api.remove(this.$route.path);
+          const res = await api.remove(this.$route.path, this.permanent);
+          this.noteTooLarge([res]);
           buttons.success("delete");
 
           this.currentPrompt?.confirm();
@@ -75,10 +100,10 @@ export default {
 
         const promises = [];
         for (const index of this.selected) {
-          promises.push(api.remove(this.req.items[index].url));
+          promises.push(api.remove(this.req.items[index].url, this.permanent));
         }
 
-        await Promise.all(promises);
+        this.noteTooLarge(await Promise.all(promises));
         buttons.success("delete");
 
         const nearbyItem =
@@ -96,3 +121,15 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.trash-note {
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+.trash-permanent {
+  display: block;
+  margin-top: 0.4em;
+}
+</style>

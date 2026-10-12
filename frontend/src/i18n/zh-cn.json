@@ -235,6 +235,32 @@
       "sync_device_remove": "移除设备"
     }
   },
+  "trash": {
+    "title": "回收站",
+    "settingsHelp": "删除的文件和文件夹会先移到你文件里的回收站目录，可以还原。",
+    "enable": "删除时使用回收站",
+    "maxSize": "最多保留（GB）",
+    "maxSizeHelp": "0 表示不限制。空间不够时会先删除最旧的项目；超过这个大小的项目会直接永久删除。",
+    "days": "保留天数",
+    "daysHelp": "0 表示一直保留，直到需要空间。",
+    "name": "名称",
+    "original": "原位置",
+    "size": "大小",
+    "deleted": "删除时间",
+    "restore": "还原",
+    "deleteForever": "永久删除",
+    "emptyTrash": "清空回收站",
+    "empty": "回收站是空的",
+    "usage": "已用 {used}，上限 {limit}，保留 {days} 天",
+    "off": "回收站已关闭",
+    "restored": "已还原到 {path}",
+    "restoreConflict": "{path} 已经存在，要在它旁边还原为副本吗？",
+    "confirmForever": "永久删除 {name}？",
+    "confirmEmpty": "永久删除回收站里的所有内容？",
+    "movedNote": "它会被移到回收站。",
+    "permanent": "永久删除（跳过回收站）",
+    "tooLarge": "太大，放不进回收站：已永久删除。"
+  },
   "perms": {
     "title": "权限",
     "nItems": "{n} 个项目",

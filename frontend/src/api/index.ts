@@ -8,6 +8,7 @@ import commands from "./commands";
 import * as sync from "./sync";
 import * as permissions from "./permissions";
 import * as activity from "./activity";
+import * as trash from "./trash";
 
 export {
   files,
@@ -20,4 +21,5 @@ export {
   sync,
   permissions,
   activity,
+  trash,
 };

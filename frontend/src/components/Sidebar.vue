@@ -16,6 +16,17 @@
         <span>{{ $t("sidebar.myFiles") }}</span>
       </button>
 
+      <button
+        v-if="enableTrash && user.perm.delete"
+        class="action"
+        @click="toTrash"
+        :aria-label="$t('trash.title')"
+        :title="$t('trash.title')"
+      >
+        <i class="material-icons">delete_outline</i>
+        <span>{{ $t("trash.title") }}</span>
+      </button>
+
       <div v-if="user.favorites && user.favorites.length > 0" class="favorites">
         <p class="favorites-title">{{ $t("sidebar.favorites") }}</p>
         <div
@@ -160,6 +171,7 @@ import {
   hideLoginButton,
   disableExternal,
   disableUsedPercentage,
+  enableTrash,
   noAuth,
   logoutPage,
   loginPage,
@@ -197,6 +209,7 @@ export default {
       return this.currentPromptName === "sidebar";
     },
     signup: () => signup,
+    enableTrash: () => enableTrash,
     hideLoginButton: () => hideLoginButton,
     version: () => version,
     disableExternal: () => disableExternal,
@@ -261,6 +274,10 @@ export default {
 
       event.preventDefault();
       await dropSelectedInto(favoriteToUrl(favorite), event, this.$showError);
+    },
+    toTrash() {
+      this.$router.push({ path: "/trash" });
+      this.closeHovers();
     },
     toRoot() {
       this.$router.push({ path: "/files" });

@@ -11,6 +11,13 @@ interface ISettings {
   tus: SettingsTus;
   shell: string[];
   commands: SettingsCommand;
+  trash?: SettingsTrash;
+}
+
+interface SettingsTrash {
+  enabled: boolean;
+  maxBytes: number;
+  days: number;
 }
 
 interface SettingsDefaults {

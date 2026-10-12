@@ -235,6 +235,32 @@
       "sync_device_remove": "Device removed"
     }
   },
+  "trash": {
+    "title": "Trash",
+    "settingsHelp": "Deleted files and folders are moved to a trash folder in your files, where they can be restored.",
+    "enable": "Use the trash when deleting",
+    "maxSize": "Keep at most (GB)",
+    "maxSizeHelp": "0 is unlimited. The oldest items are removed to make room; an item bigger than this is deleted for good.",
+    "days": "Keep for (days)",
+    "daysHelp": "0 keeps items until the space is needed.",
+    "name": "Name",
+    "original": "Deleted from",
+    "size": "Size",
+    "deleted": "Deleted",
+    "restore": "Restore",
+    "deleteForever": "Delete forever",
+    "emptyTrash": "Empty the trash",
+    "empty": "The trash is empty",
+    "usage": "{used} used of {limit}, items are kept {days} days",
+    "off": "the trash is switched off",
+    "restored": "Restored to {path}",
+    "restoreConflict": "{path} already exists. Restore it as a copy next to it?",
+    "confirmForever": "Delete {name} forever?",
+    "confirmEmpty": "Delete everything in the trash forever?",
+    "movedNote": "It will be moved to the trash.",
+    "permanent": "Delete permanently (skip the trash)",
+    "tooLarge": "Too large for the trash: deleted permanently."
+  },
   "perms": {
     "title": "Permissions",
     "nItems": "{n} items",

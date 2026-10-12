@@ -71,8 +71,9 @@ async function resourceAction(url: string, method: ApiMethod, content?: any) {
   return res;
 }
 
-export async function remove(url: string) {
-  return resourceAction(url, "DELETE");
+// Deleting moves to the trash when it is on; permanent skips it.
+export async function remove(url: string, permanent = false) {
+  return resourceAction(url + (permanent ? "?permanent=true" : ""), "DELETE");
 }
 
 export async function put(url: string, content = "") {

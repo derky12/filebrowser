@@ -1,6 +1,55 @@
 <template>
   <errors v-if="error" :errorCode="error.status" />
   <div class="row" v-else-if="!layoutStore.loading && settings !== null">
+    <div class="column" v-if="settings.trash">
+      <form class="card" @submit.prevent="save">
+        <div class="card-title">
+          <h2>{{ t("trash.title") }}</h2>
+        </div>
+
+        <div class="card-content">
+          <p>{{ t("trash.settingsHelp") }}</p>
+          <p>
+            <input type="checkbox" v-model="settings.trash.enabled" />
+            {{ t("trash.enable") }}
+          </p>
+          <p>
+            <label class="small">{{ t("trash.maxSize") }}</label>
+            <input
+              class="input input--block"
+              type="number"
+              min="0"
+              step="0.1"
+              v-model.number="trashMaxGB"
+              :disabled="!settings.trash.enabled"
+            />
+            <small>{{ t("trash.maxSizeHelp") }}</small>
+          </p>
+          <p>
+            <label class="small">{{ t("trash.days") }}</label>
+            <input
+              class="input input--block"
+              type="number"
+              min="0"
+              max="36500"
+              step="1"
+              v-model.number="settings.trash.days"
+              :disabled="!settings.trash.enabled"
+            />
+            <small>{{ t("trash.daysHelp") }}</small>
+          </p>
+        </div>
+
+        <div class="card-action">
+          <input
+            class="button button--flat"
+            type="submit"
+            :value="t('buttons.update')"
+          />
+        </div>
+      </form>
+    </div>
+
     <div class="column">
       <form class="card" @submit.prevent="save">
         <div class="card-title">
@@ -313,6 +362,22 @@ const applyChunkSize = () => {
   }
   pendingChunkSize.value = null;
 };
+
+// The trash size limit is edited in GB; the server stores bytes.
+const trashMaxGB = computed({
+  get: () =>
+    settings.value?.trash
+      ? Math.round((settings.value.trash.maxBytes / 2 ** 30) * 100) / 100
+      : 0,
+  set: (gb: number) => {
+    if (settings.value?.trash) {
+      settings.value.trash.maxBytes = Math.max(
+        0,
+        Math.round((gb || 0) * 2 ** 30)
+      );
+    }
+  },
+});
 
 // Define funcs
 const capitalize = (name: string, where: string | RegExp = "_") => {
