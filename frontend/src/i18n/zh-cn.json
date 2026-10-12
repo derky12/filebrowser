@@ -188,6 +188,27 @@
     "confirmStop": "停止同步 {path}？两边的文件都会保留。",
     "confirmRemoveDevice": "移除设备 {name}？"
   },
+  "perms": {
+    "title": "权限",
+    "nItems": "{n} 个项目",
+    "multiNote": "显示的是第一个项目的值，应用时会作用到所有选中的项目。",
+    "read": "读",
+    "write": "写",
+    "execute": "执行",
+    "owner": "所有者",
+    "group": "所属组",
+    "others": "其他人",
+    "octal": "权限（八进制）",
+    "ownerHelp": "所有者和所属组：填服务器上已有的名称，或数字 ID。不修改就留空不动。",
+    "recursive": "同时应用到文件夹内的所有内容",
+    "fileMode": "里面文件的权限",
+    "dirMode": "里面文件夹的权限",
+    "recursiveHelp": "符号链接会被跳过，也不会被跟随；被规则隐藏的文件同样跳过。",
+    "apply": "应用",
+    "done": "已修改 {n} 个项目",
+    "doneSkipped": "已修改 {n} 个项目，跳过 {skipped} 个",
+    "partial": "已修改 {changed} 个，失败 {failed} 个。"
+  },
   "prompts": {
     "folderColor": "文件夹颜色",
     "folderColorDefault": "默认",

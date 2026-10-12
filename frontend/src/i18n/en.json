@@ -188,6 +188,27 @@
     "confirmStop": "Stop syncing {path}? Files on both devices are kept.",
     "confirmRemoveDevice": "Remove the device {name}?"
   },
+  "perms": {
+    "title": "Permissions",
+    "nItems": "{n} items",
+    "multiNote": "The values of the first item are shown and will be applied to every selected item.",
+    "read": "Read",
+    "write": "Write",
+    "execute": "Execute",
+    "owner": "Owner",
+    "group": "Group",
+    "others": "Others",
+    "octal": "Mode (octal)",
+    "ownerHelp": "Owner and group: a name known to this server, or a numeric id. Leave unchanged to keep them.",
+    "recursive": "Apply to everything inside the folder",
+    "fileMode": "Mode for files inside",
+    "dirMode": "Mode for folders inside",
+    "recursiveHelp": "Symbolic links are skipped and never followed. Files with a rule hiding them are skipped too.",
+    "apply": "Apply",
+    "done": "Changed {n} items",
+    "doneSkipped": "Changed {n} items, skipped {skipped}",
+    "partial": "Changed {changed}, failed {failed}."
+  },
   "prompts": {
     "folderColor": "Folder color",
     "folderColorDefault": "Default",

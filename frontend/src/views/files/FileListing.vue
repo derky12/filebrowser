@@ -31,6 +31,12 @@
             @action="openSync"
           />
           <action
+            v-if="headerButtons.permissions"
+            icon="lock"
+            :label="t('perms.title')"
+            @action="openPermissions"
+          />
+          <action
             v-if="headerButtons.copy"
             id="copy-button"
             icon="content_copy"
@@ -128,6 +134,12 @@
         icon="sync"
         :label="t('sync.syncFolder')"
         @action="openSync"
+      />
+      <action
+        v-if="headerButtons.permissions"
+        icon="lock"
+        :label="t('perms.title')"
+        @action="openPermissions"
       />
       <action
         v-if="headerButtons.copy"
@@ -317,6 +329,12 @@
             icon="sync"
             :label="t('sync.syncFolder')"
             @action="openSync"
+          />
+          <action
+            v-if="headerButtons.permissions"
+            icon="lock"
+            :label="t('perms.title')"
+            @action="openPermissions"
           />
           <action
             v-if="headerButtons.copy"
@@ -537,6 +555,7 @@ const headerButtons = computed(() => {
       authStore.user?.perm.admin &&
       fileStore.selectedCount === 1 &&
       !!fileStore.req?.items[fileStore.selected[0]]?.isDir,
+    permissions: fileStore.selectedCount > 0 && authStore.user?.perm.modify,
     cut: fileStore.selectedCount > 0 && authStore.user?.perm.rename,
     paste: clipboardStore.items.length > 0 && authStore.user?.perm.create,
   };
@@ -713,6 +732,20 @@ const openSync = (): void => {
     prompt: "syncFolder",
     props: { path: urlToFavorite(item.url) },
   });
+};
+
+const openPermissions = (): void => {
+  const items = fileStore.selected
+    .map((index) => fileStore.req?.items[index])
+    .filter((item): item is ResourceItem => !!item)
+    .map((item) => ({
+      path: urlToFavorite(item.url),
+      name: item.name,
+      isDir: item.isDir,
+    }));
+  if (items.length === 0) return;
+
+  layoutStore.showHover({ prompt: "permissions", props: { items } });
 };
 
 const cutSelected = (): void => copyCut(null, "x");
